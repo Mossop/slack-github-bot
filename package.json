@@ -35,6 +35,7 @@
     "babel-cli": "6.7.5",
     "babel-preset-es2015-node5": "1.2.0",
     "babel-preset-stage-2": "6.5.0",
-    "request": "2.71.0"
+    "request": "2.71.0",
+    "splitargs": "0.0.7"
   }
 }

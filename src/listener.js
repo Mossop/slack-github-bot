@@ -15,6 +15,7 @@ class HttpListener {
     this.uuid = uuid;
     this.server = http.createServer(this.handler.bind(this));
     this.server.listen(port);
+    this.events.on("destroy", this.destroy.bind(this));
   }
 
   destroy() {
@@ -29,10 +30,9 @@ class HttpListener {
     urlPath = urlPath.substring(this.uuid.length + 1);
 
     if (urlPath == "/kill") {
-      this.events.emit("destroy");
-      this.destroy();
       response.writeHead(200);
       response.end();
+      this.events.emit("destroy");
       return;
     }
 

@@ -1,4 +1,7 @@
 import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
+import splitargs from "splitargs";
+
+import { isActionEnabledForChannel, setActionEnabledForChannel, setConfig, getConfig } from "./config";
 
 const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
@@ -82,12 +85,59 @@ class Bot {
   }
 
   onDirectMessage(channel, message, text) {
-    text = text.trim();
     let target = "";
     if (!channel.is_im) {
       target = `<@${message.user}>: `;
     }
-    let response = text;
+
+    let response = "Sorry, I don't understand.";
+    if (text == "") {
+      response = "What?";
+    } else {
+      try {
+        let params = splitargs(text.trim(), null, true);
+        switch(params.shift()) {
+          case "help":
+            response = "Yeah, you need help.";
+            break;
+          case "shutdown":
+            this.sendMessage(channel, target + "Bye.");
+            this.events.emit("destroy");
+            return;
+          case "set-config":
+            if (params.length != 2) {
+              response = "Usage: set-config <path> <value>";
+            } else {
+              let [name, value] = params;
+              if (value == "undefined") {
+                value = undefined;
+              } else {
+                try {
+                  value = JSON.parse(value);
+                }
+                catch (e) {
+                }
+              }
+
+              setConfig(name, value);
+              response = "Ok.";
+            }
+            break;
+          case "get-config":
+            if (params.length > 1) {
+              response = "Usage: get-config <path>";
+            } else {
+              let name = params.length ? params[0] : "";
+              response = JSON.stringify(getConfig(name, undefined));
+            }
+            break;
+        }
+      }
+      catch (e) {
+        response = e + "\n" + e.stack;
+      }
+    }
+
     this.sendMessage(channel, target + response);
   }
 

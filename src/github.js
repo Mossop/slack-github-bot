@@ -1,5 +1,11 @@
 import request from "request";
 
+const GITHUB = {
+  name: "GitHub",
+  url: "https://github.com",
+  avatar: "",
+}
+
 function fetchSender(info) {
   return new Promise((resolve, reject) => {
     request({
@@ -16,9 +22,9 @@ function fetchSender(info) {
       try {
         let sender = JSON.parse(body);
         resolve({
-          username: sender.login,
+          name: sender.login,
           avatar: sender.avatar_url,
-          name: sender.name,
+          fullname: sender.name,
         })
       }
       catch (e) {
@@ -26,6 +32,15 @@ function fetchSender(info) {
       }
     });
   });
+}
+
+function makeRepository(repository) {
+  return {
+    id: repository.full_name,
+    fullname: repository.full_name,
+    name: repository.name,
+    url: repository.html_url,
+  };
 }
 
 class Github {
@@ -47,17 +62,14 @@ class Github {
       event: data.action,
       url: data.issue.html_url,
       issue: {
-        id: data.issue.number,
+        name: data.issue.number,
         url: data.issue.html_url,
         title: data.issue.title,
         state: data.issue.state,
       },
-      repository: {
-        id: data.repository.full_name,
-        name: data.repository.name,
-        url: data.repository.html_url,
-      },
+      repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
+      source: GITHUB,
     };
 
     this.events.emit("issue", event);
@@ -72,17 +84,14 @@ class Github {
       event: data.action,
       url: data.pull_request.html_url,
       pullrequest: {
-        id: data.pull_request.number,
+        name: data.pull_request.number,
         url: data.pull_request.html_url,
         title: data.pull_request.title,
         state: data.pull_request.state,
       },
-      repository: {
-        id: data.repository.full_name,
-        name: data.repository.name,
-        url: data.repository.html_url,
-      },
+      repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
+      source: GITHUB,
     };
 
     this.events.emit("pullrequest", event);
@@ -101,12 +110,9 @@ class Github {
     let event = {
       url: data.compare,
       commits: data.commits.map(mungeCommit),
-      repository: {
-        id: data.repository.full_name,
-        name: data.repository.name,
-        url: data.repository.html_url,
-      },
+      repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
+      source: GITHUB,
     };
 
     this.events.emit("push", event);
