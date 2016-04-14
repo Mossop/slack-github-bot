@@ -1,0 +1,43 @@
+{
+  "name": "slack-github-bot",
+  "version": "1.0.0",
+  "description": "A helpful bot for monitoring github project development",
+  "scripts": {
+    "build": "babel src -d lib",
+    "start": "node lib/start.js",
+    "stop": "node lib/stop.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mossop/slack-github-bot.git"
+  },
+  "keywords": [
+    "slack",
+    "git",
+    "github",
+    "bot",
+    "issues",
+    "pull-requests",
+    "appveyor",
+    "travis",
+    "travisci",
+    "travis-ci"
+  ],
+  "author": "Dave Townsend <dtownsend@oxymoronical.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Mossop/slack-github-bot/issues"
+  },
+  "homepage": "https://github.com/Mossop/slack-github-bot#readme",
+  "dependencies": {
+    "babel-cli": "6.7.5",
+    "babel-preset-es2015-node5": "1.2.0",
+    "babel-preset-stage-2": "6.5.0",
+    "redux": "^3.4.0",
+    "slack-client": "2.0.4"
+  },
+  "optionalDependencies": {
+    "nat-upnp": "1.0.0"
+  }
+}
