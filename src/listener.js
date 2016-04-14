@@ -7,8 +7,9 @@ function isLocal(socket) {
 }
 
 class HttpListener {
-  constructor(store, port) {
-    this.store = store;
+  constructor(emitter, port, uuid) {
+    this.emitter = emitter;
+    this.uuid = uuid;
     this.server = http.createServer(this.handler.bind(this));
     this.server.listen(port);
   }
@@ -19,6 +20,10 @@ class HttpListener {
 
   handler(req, res) {
     let urlPath = url.parse(req.url).pathname;
+    if (!urlPath.startsWith(`/${this.uuid}`)) {
+      return;
+    }
+    urlPath = urlPath.substring(this.uuid.length + 1);
     console.log(req.socket.localAddress, urlPath);
 
     if (urlPath == "/kill") {
