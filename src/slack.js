@@ -136,12 +136,17 @@ class Bot {
   onPushEvent(event) {
   }
 
-  sendMessage(channel, text) {
-    this.webClient.chat.postMessage(channel.id, text);
+  sendMessage(channel, text, attachments = undefined) {
+    this.webClient.chat.postMessage(channel.id, text, {
+      username: this.name,
+      as_user: false,
+      attachments,
+    });
   }
 
   onConnected(rtmData) {
     this.id = rtmData.self.id;
+    this.name = rtmData.self.name;
 
     let allChannels = rtmData.channels.concat(rtmData.groups, rtmData.ims);
     for (let channel of allChannels) {
