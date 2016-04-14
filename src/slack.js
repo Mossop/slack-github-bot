@@ -21,6 +21,87 @@ const REPO_EVENT_MAP = {
   "push": "onPushEvent",
 };
 
+const Commands = {
+  "help": {
+    info: "List commands for this bot.",
+    run({ params, respond }) {
+      if (params.length > 1) {
+        respond("Usage: help <command>");
+        return;
+      } else if (params.length == 1) {
+        if (params[0] in Commands) {
+          let command = Commands[params[0]];
+          let response = command.info;
+          if (command.usage) {
+            response += "\n" + command.usage;
+          }
+          respond(response);
+        } else {
+          respond("Unknown command");
+        }
+      } else {
+        let response = "Here are the commands I support:";
+        for (let name of Object.keys(Commands)) {
+          response += "\n" + name + ": " + Commands[name].info;
+        }
+        respond(response);
+      }
+    }
+  },
+
+  "shutdown": {
+    info: "Shuts down this bot.",
+    run({ params, respond }) {
+      respond("Bye.");
+      this.events.emit("destroy");
+    }
+  },
+
+  "set-config": {
+    usage: "set-config <path> <value>",
+    info: "Sets a configuration entry.",
+    validate({ params }) {
+      return params.length == 2;
+    },
+    run({ params, respond }) {
+      let [name, value] = params;
+      if (value == "undefined") {
+        value = undefined;
+      } else {
+        try {
+          value = JSON.parse(value);
+        }
+        catch (e) {
+        }
+      }
+
+      setConfig(name, value);
+      respond("Ok.");
+    }
+  },
+
+  "get-config": {
+    usage: "get-config <path>",
+    info: "Gets a configuration entry.",
+    validate({ params }) {
+      return params.length <= 1;
+    },
+    run({ params, respond }) {
+      let name = params.length ? params[0] : "";
+      respond(JSON.stringify(getConfig(name, undefined)));
+    }
+  }
+}
+
+function runCommand(bot, command, args) {
+  let commandObj = Commands[command];
+  if ("validate" in commandObj && !commandObj.validate.call(bot, args)) {
+    runCommand(bot, "help", [command]);
+    return;
+  }
+  commandObj.run.call(bot, args);
+}
+
 class Bot {
   constructor(token, events) {
     this.token = token;
@@ -85,60 +166,34 @@ class Bot {
   }
 
   onDirectMessage(channel, message, text) {
-    let target = "";
-    if (!channel.is_im) {
-      target = `<@${message.user}>: `;
-    }
+    let respond = (text) => {
+      if (!channel.is_im) {
+        text = `<@${message.user}>: ${text}`;
+      }
+
+      this.sendMessage(channel, text);
+    };
 
     let response = "Sorry, I don't understand.";
     if (text == "") {
-      response = "What?";
-    } else {
-      try {
-        let params = splitargs(text.trim(), null, true);
-        switch(params.shift()) {
-          case "help":
-            response = "Yeah, you need help.";
-            break;
-          case "shutdown":
-            this.sendMessage(channel, target + "Bye.");
-            this.events.emit("destroy");
-            return;
-          case "set-config":
-            if (params.length != 2) {
-              response = "Usage: set-config <path> <value>";
-            } else {
-              let [name, value] = params;
-              if (value == "undefined") {
-                value = undefined;
-              } else {
-                try {
-                  value = JSON.parse(value);
-                }
-                catch (e) {
-                }
-              }
-
-              setConfig(name, value);
-              response = "Ok.";
-            }
-            break;
-          case "get-config":
-            if (params.length > 1) {
-              response = "Usage: get-config <path>";
-            } else {
-              let name = params.length ? params[0] : "";
-              response = JSON.stringify(getConfig(name, undefined));
-            }
-            break;
-        }
-      }
-      catch (e) {
-        response = e + "\n" + e.stack;
-      }
+      respond("What?");
+      return;
     }
 
-    this.sendMessage(channel, target + response);
+    let params = splitargs(text.trim(), null, true);
+    let cmd = params.shift();
+    if (!(cmd in Commands)) {
+      respond("Sorry, I don't understand.");
+      return;
+    }
+
+    try {
+      runCommand(this, cmd, { respond, params });
+      return;
+    }
+    catch (e) {
+      respond(e + "\n" + e.stack);
+    }
   }
 
   onMessage(message) {
