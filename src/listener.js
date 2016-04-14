@@ -10,8 +10,8 @@ function isLocal(socket) {
 }
 
 class HttpListener {
-  constructor(emitter, port, uuid) {
-    this.emitter = emitter;
+  constructor(events, port, uuid) {
+    this.events = events;
     this.uuid = uuid;
     this.server = http.createServer(this.handler.bind(this));
     this.server.listen(port);
@@ -29,7 +29,7 @@ class HttpListener {
     urlPath = urlPath.substring(this.uuid.length + 1);
 
     if (urlPath == "/kill") {
-      this.emitter("destroy");
+      this.events.emit("destroy");
       this.destroy();
       response.writeHead(200);
       response.end();
@@ -48,20 +48,13 @@ class HttpListener {
     });
 
     request.on("end", () => {
-      try {
-        let payload = JSON.parse(body);
-        this.emitter("http", {
-          path: urlPath,
-          payload
-        });
-        response.writeHead(200);
-        response.end();
-      }
-      catch (e) {
-        console.error(e);
-        response.writeHead(500);
-        response.end(e);
-      }
+      this.events.emit("http", {
+        path: urlPath,
+        headers: request.headers,
+        body,
+      });
+      response.writeHead(200);
+      response.end();
     });
   }
 }

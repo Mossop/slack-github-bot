@@ -1,6 +1,6 @@
 import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
 
-const EVENT_MAP = {
+const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
   [CLIENT_EVENTS.RTM.WS_CLOSE]: "onDisconnected",
   [RTM_EVENTS.CHANNEL_JOINED]: "onChannelJoined",
@@ -12,10 +12,17 @@ const EVENT_MAP = {
   [RTM_EVENTS.MESSAGE]: "onMessage",
 };
 
+const REPO_EVENT_MAP = {
+  "pullrequest": "onPullRequestEvent",
+  "issue": "onIssueEvent",
+  "push": "onPushEvent",
+};
+
 class Bot {
   constructor(token, events) {
     this.token = token;
     this.channels = new Map();
+    this.events = events;
 
     for (let event of ["destroy"]) {
       let name = "on" + event.charAt(0).toUpperCase() + event.substring(1);
@@ -25,11 +32,24 @@ class Bot {
     this.client = new Client(token);
     this.webClient = new WebClient(token);
 
-    for (let event of Object.keys(EVENT_MAP)) {
-      this.client.on(event, this[EVENT_MAP[event]].bind(this));
+    for (let event of Object.keys(SLACK_EVENT_MAP)) {
+      this.client.on(event, this[SLACK_EVENT_MAP[event]].bind(this));
+    }
+
+    for (let event of Object.keys(REPO_EVENT_MAP)) {
+      this.events.on(event, this[REPO_EVENT_MAP[event]].bind(this));
     }
 
     this.client.start({ no_unreads: true });
+  }
+
+  onPullRequestEvent(event) {
+  }
+
+  onIssueEvent(event) {
+  }
+
+  onPushEvent(event) {
   }
 
   sendMessage(channel, text) {

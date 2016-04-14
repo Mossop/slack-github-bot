@@ -31,10 +31,10 @@
   },
   "homepage": "https://github.com/Mossop/slack-github-bot#readme",
   "dependencies": {
+    "@slack/client": "2.0.4",
     "babel-cli": "6.7.5",
     "babel-preset-es2015-node5": "1.2.0",
     "babel-preset-stage-2": "6.5.0",
-    "redux": "^3.4.0",
-    "@slack/client": "2.0.4"
+    "request": "2.71.0"
   }
 }

@@ -2,11 +2,12 @@ import EventEmitter from "events";
 
 import HttpListener from "./listener"
 import Bot from "./slack";
+import Github from "./github";
 import config from "../config";
 
 const eventStream = new EventEmitter();
 
-new HttpListener(eventStream.emit.bind(eventStream), config.port, config.uuid);
+new HttpListener(eventStream, config.port, config.uuid);
 
 eventStream.on("http", (payload) => {
   let data = JSON.stringify(payload);
@@ -18,3 +19,4 @@ eventStream.on("http", (payload) => {
 });
 
 new Bot(config.slack_token, eventStream);
+new Github(eventStream);
