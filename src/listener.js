@@ -29,7 +29,7 @@ class HttpListener {
     urlPath = urlPath.substring(this.uuid.length + 1);
 
     if (urlPath == "/kill") {
-      this.emitter("http", { path: "/kill" });
+      this.emitter("destroy");
       this.destroy();
       response.writeHead(200);
       response.end();

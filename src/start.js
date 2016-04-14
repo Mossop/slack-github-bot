@@ -1,14 +1,12 @@
 import EventEmitter from "events";
 
 import HttpListener from "./listener"
+import Bot from "./slack";
 import config from "../config";
 
 const eventStream = new EventEmitter();
-function emit(source, payload) {
-  eventStream.emit(source, payload);
-}
 
-new HttpListener(emit, config.port, config.uuid);
+new HttpListener(eventStream.emit.bind(eventStream), config.port, config.uuid);
 
 eventStream.on("http", (payload) => {
   let data = JSON.stringify(payload);
@@ -18,3 +16,5 @@ eventStream.on("http", (payload) => {
 
   console.log("http " + data);
 });
+
+new Bot(config.slack_token, eventStream);
