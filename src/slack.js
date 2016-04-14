@@ -1,4 +1,4 @@
-import { RtmClient as Client, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
+import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
 
 const EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
@@ -23,6 +23,7 @@ class Bot {
     }
 
     this.client = new Client(token);
+    this.webClient = new WebClient(token);
 
     for (let event of Object.keys(EVENT_MAP)) {
       this.client.on(event, this[EVENT_MAP[event]].bind(this));
@@ -32,7 +33,7 @@ class Bot {
   }
 
   sendMessage(channel, text) {
-    this.client.sendMessage(text, channel.id);
+    this.webClient.chat.postMessage(channel.id, text);
   }
 
   onConnected(rtmData) {
