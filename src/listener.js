@@ -15,21 +15,22 @@ class HttpListener {
   }
 
   destroy() {
+    this.emitter("http", { reason: "shutdown" });
     return new Promise((resolve) => this.server.close(resolve));
   }
 
   handler(req, res) {
     let urlPath = url.parse(req.url).pathname;
-    if (!urlPath.startsWith(`/${this.uuid}`)) {
+    if (!urlPath.startsWith(`/${this.uuid}/`)) {
       return;
     }
-    urlPath = urlPath.substring(this.uuid.length + 1);
-    console.log(req.socket.localAddress, urlPath);
+    let source = urlPath.substring(this.uuid.length + 2);
 
-    if (urlPath == "/kill") {
+    if (source == "kill") {
+      this.destroy();
       res.writeHead(200);
       res.end();
-      this.destroy();
+      return;
     }
   }
 }

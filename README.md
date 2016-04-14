@@ -2,15 +2,13 @@
 A helpful bot for monitoring github project development
 
 ## Configuration
-Create a tokens.json that looks like this:
+Create a config.json that looks like this:
 
     {
-      "UUID": "<A private ID, any string>",
-      "SLACK_TOKEN": "<slack API token>"
+      "port": <IP port>,
+      "uuid": "<A private ID, any string>",
+      "slack_token": "<slack API token>"
     }
-
-Change `config.json` to suit your needs.`map-port` attempts to map the external
-port of your UPNP router.
 
 Point GitHub's webhook to:
 
@@ -23,3 +21,13 @@ Point AppVeyor's webhook to:
 Point Travis CI's webhook to:
 
     http://<your server>:<your port>/<your uuid>/travis
+
+## Running
+
+Start the bot server:
+
+    npm start
+
+Stop the bot server:
+
+    npm stop

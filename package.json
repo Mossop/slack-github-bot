@@ -36,8 +36,5 @@
     "babel-preset-stage-2": "6.5.0",
     "redux": "^3.4.0",
     "slack-client": "2.0.4"
-  },
-  "optionalDependencies": {
-    "nat-upnp": "1.0.0"
   }
 }
