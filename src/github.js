@@ -59,7 +59,8 @@ class Github {
     }
 
     let event = {
-      event: data.action,
+      type: "issue",
+      subtype: data.action,
       url: data.issue.html_url,
       issue: {
         name: data.issue.number,
@@ -72,7 +73,7 @@ class Github {
       source: GITHUB,
     };
 
-    this.events.emit("issue", event);
+    this.events.emit(event.type, event);
   }
 
   async parsePREvent(data) {
@@ -81,7 +82,8 @@ class Github {
     }
 
     let event = {
-      event: data.action,
+      type: "pullrequest",
+      subtype: data.action,
       url: data.pull_request.html_url,
       pullrequest: {
         name: data.pull_request.number,
@@ -94,7 +96,7 @@ class Github {
       source: GITHUB,
     };
 
-    this.events.emit("pullrequest", event);
+    this.events.emit(event.type, event);
   }
 
   async parsePushEvent(data) {
@@ -108,6 +110,7 @@ class Github {
     }
 
     let event = {
+      type: "push",
       url: data.compare,
       commits: data.commits.map(mungeCommit),
       repository: makeRepository(data.repository),
@@ -115,7 +118,7 @@ class Github {
       source: GITHUB,
     };
 
-    this.events.emit("push", event);
+    this.events.emit(event.type, event);
   }
 
   async parseEvent({ headers, body }) {

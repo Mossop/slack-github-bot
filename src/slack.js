@@ -1,7 +1,7 @@
 import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
 import splitargs from "splitargs";
 
-import { isActionEnabledForChannel, setActionEnabledForChannel, setConfig, getConfig } from "./config";
+import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
 
 const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
@@ -90,13 +90,54 @@ const Commands = {
       let name = params.length ? params[0] : "";
       respond(JSON.stringify(getConfig(name, undefined)));
     }
+  },
+
+  "set": {
+    usage: "set <type> <subtype> <on/off/default>",
+    info: "Control reporting of events to this channel.",
+    validate({ params }) {
+      if (params.length < 1 || params.length > 3) {
+        return false;
+      }
+
+      let state = params[params.length - 1];
+      if (state != "on" && state != "off" && state != "default") {
+        return false;
+      }
+
+      return true;
+    },
+    run({ channel, params, respond }) {
+      let state = params.pop();
+      if (state == "default") {
+        state = undefined;
+      } else {
+        state = state == "on";
+      }
+
+      setEventEnabledForChannel(state, channel, ...params);
+      respond("Ok.");
+    }
+  },
+
+  "test": {
+    usage: "test <type> <subtype>",
+    info: "Test whether events will be reported to this channel.",
+    validate({ params }) {
+      return params.length <= 2;
+    },
+    run({ channel, params, respond }) {
+      let result = isEventEnabledForChannel(channel, ...params);
+      respond(result ? "on" : "off");
+    }
   }
 }
 
 function runCommand(bot, command, args) {
   let commandObj = Commands[command];
   if ("validate" in commandObj && !commandObj.validate.call(bot, args)) {
-    runCommand(bot, "help", [command]);
+    args.params = [command];
+    runCommand(bot, "help", args);
     return;
   }
   commandObj.run.call(bot, args);
@@ -127,20 +168,51 @@ class Bot {
     this.client.start({ no_unreads: true });
   }
 
+  sendEvent(type, subtype, message) {
+    for (let channel of this.channels.values()) {
+      if (isEventEnabledForChannel(channel, type, subtype)) {
+        this.sendMessage(channel, message);
+      }
+    }
+  }
+
   onPullRequestEvent(event) {
   }
 
   onIssueEvent(event) {
+    this.sendEvent(event.type, event.subtype, {
+      username: event.source.name,
+      text: `${event.sender.fullname} filed issue ${event.issue.name}.`,
+      attachments: [{
+        fallback: `${event.issue.title} ${event.issue.url}`,
+        title: event.issue.title,
+        title_link: event.issue.url
+      }]
+    });
   }
 
   onPushEvent(event) {
   }
 
-  sendMessage(channel, text, attachments = undefined) {
-    this.webClient.chat.postMessage(channel.id, text, {
+  sendMessage(channel, message) {
+    let options = Object.assign({
       username: this.name,
-      as_user: false,
-      attachments,
+      as_user: false
+    }, message);
+
+    let text = options.text;
+    delete options.text;
+
+    if ("attachments" in options) {
+      options.attachments = JSON.stringify(options.attachments);
+    }
+
+    this.webClient.chat.postMessage(channel.id, text, options, function(err, response) {
+      if (err) {
+        console.error(err);
+      } else if (response && !response.ok) {
+        console.error(response);
+      }
     });
   }
 
@@ -171,12 +243,12 @@ class Bot {
   }
 
   onDirectMessage(channel, message, text) {
-    let respond = (text) => {
+    let respond = (text, attachments) => {
       if (!channel.is_im) {
         text = `<@${message.user}>: ${text}`;
       }
 
-      this.sendMessage(channel, text);
+      this.sendMessage(channel, { text, attachments });
     };
 
     let response = "Sorry, I don't understand.";
@@ -193,7 +265,7 @@ class Bot {
     }
 
     try {
-      runCommand(this, cmd, { respond, params });
+      runCommand(this, cmd, { channel, respond, params });
       return;
     }
     catch (e) {

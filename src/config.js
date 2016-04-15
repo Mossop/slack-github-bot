@@ -1,5 +1,5 @@
 const CONFIG = {
-  actionRules: {
+  eventRules: {
     rules: {}
   }
 };
@@ -10,7 +10,7 @@ function loadConfig() {
 function saveConfig() {
 }
 
-function setActionEnabledForPath(enabled, config, path) {
+function setEventEnabledForPath(enabled, config, path) {
   if (path.length == 0) {
     if (enabled === undefined) {
       delete config.default;
@@ -26,18 +26,18 @@ function setActionEnabledForPath(enabled, config, path) {
     };
   }
 
-  setActionEnabledForPath(enabled, config.rules[path[0]], path.slice(1));
+  setEventEnabledForPath(enabled, config.rules[path[0]], path.slice(1));
 }
 
-function setActionEnabledForChannel(enabled, channel, ...args) {
-  setActionEnabledForPath(enabled, CONFIG.actionRules, [channel.id, ...args]);
+function setEventEnabledForChannel(enabled, channel, ...args) {
+  setEventEnabledForPath(enabled, CONFIG.eventRules, [channel.id, ...args]);
 
   saveConfig();
 }
 
-function isActionEnabledForPath(config, path) {
+function isEventEnabledForPath(config, path) {
   if (path.length > 0 && path[0] in config.rules) {
-    let result = isActionEnabledForPath(config.rules[path[0]], path.slice(1));
+    let result = isEventEnabledForPath(config.rules[path[0]], path.slice(1));
     if (result !== undefined) {
       return result;
     }
@@ -50,8 +50,8 @@ function isActionEnabledForPath(config, path) {
   return undefined;
 }
 
-function isActionEnabledForChannel(channel, ...args) {
-  let result = isActionEnabledForPath(CONFIG.actionRules, [channel.id, ...args]);
+function isEventEnabledForChannel(channel, ...args) {
+  let result = isEventEnabledForPath(CONFIG.eventRules, [channel.id, ...args]);
 
   if (result !== undefined) {
     return result;
@@ -112,4 +112,4 @@ function getConfig(key, defaultValue) {
 
 loadConfig();
 
-export { isActionEnabledForChannel, setActionEnabledForChannel, setConfig, getConfig };
+export { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig };
