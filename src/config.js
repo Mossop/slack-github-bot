@@ -1,13 +1,37 @@
+import fs from "fs";
+import path from "path";
+
 const CONFIG = {
   eventRules: {
     rules: {}
   }
 };
 
+const configFile = path.join(path.dirname(path.resolve(__dirname)), "prefs.json");
+
 function loadConfig() {
+  try {
+    let settings = fs.readFileSync(configFile, { encoding: "utf8" });
+    let newConfig = JSON.parse(settings);
+
+    for (let name of Object.keys(CONFIG)) {
+      delete CONFIG[name];
+    }
+
+    for (let name of Object.keys(newConfig)) {
+      CONFIG[name] = newConfig[name];
+    }
+  } catch (e) {
+    console.error("Failed to load preferences.", e);
+  }
 }
 
 function saveConfig() {
+  try {
+    fs.writeFileSync(configFile, JSON.stringify(CONFIG));
+  } catch (e) {
+    console.error("Failed to save preferences.", e);
+  }
 }
 
 function setEventEnabledForPath(enabled, config, path) {
