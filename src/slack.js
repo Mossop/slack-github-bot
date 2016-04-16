@@ -212,6 +212,7 @@ class Bot {
   onPullRequestEvent(event) {
     let message = {
       username: event.source.name,
+      icon_url: event.source.avatar,
       text: `${escape(event.sender.fullname)} ${event.subtype} pull request ${event.pullrequest.name}.`,
       attachments: [{
         fallback: `${escape(event.pullrequest.title)} ${escape(event.pullrequest.url)}`,
@@ -226,6 +227,7 @@ class Bot {
   onIssueEvent(event) {
     let message = {
       username: event.source.name,
+      icon_url: event.source.avatar,
       text: `${escape(event.sender.fullname)} ${event.subtype} issue ${event.issue.name}.`,
       attachments: [{
         fallback: `${escape(event.issue.title)} ${escape(event.issue.url)}`,
@@ -261,6 +263,7 @@ class Bot {
 
     let message = {
       username: event.source.name,
+      icon_url: event.source.avatar,
       text,
       attachments: [{
         color: event.forced ? "danger" : "good",
@@ -275,7 +278,8 @@ class Bot {
   sendMessage(channel, message) {
     let options = Object.assign({
       username: this.name,
-      as_user: false
+      as_user: false,
+      icon_url: `http://${config.hostname}:${config.port}/static/bot.png`
     }, message);
 
     let text = options.text;

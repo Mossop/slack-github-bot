@@ -1,9 +1,10 @@
 import request from "request";
+import config from "../config";
 
 const GITHUB = {
   name: "GitHub",
   url: "https://github.com",
-  avatar: "",
+  avatar: `http://${config.hostname}:${config.port}/static/github.png`,
 }
 
 function fetchSender(info) {

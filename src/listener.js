@@ -2,10 +2,14 @@ import http from "http";
 import path from "path";
 import url from "url";
 
+import fs from "fs-promise";
+
 import config from "../config";
 
 // Github's maximum payload is 5MB, be a little generous
 const MAX_PAYLOAD = 1024 * 1024 * 6;
+
+const STATIC = path.resolve(path.join(__dirname, "..", "static"));
 
 function isLocal(socket) {
   return (socket.localAddress == "::1" || socket.localAddress == "127.0.0.1");
@@ -23,8 +27,29 @@ class HttpListener {
     return new Promise((resolve) => this.server.close(resolve));
   }
 
-  handler(request, response) {
+  async handler(request, response) {
     let urlPath = url.parse(request.url).pathname;
+
+    if (urlPath.startsWith("/static/")) {
+      let file = path.resolve(path.join(STATIC, urlPath.substring(8)));
+      if (!file.startsWith(STATIC)) {
+        response.writeHead(500);
+        response.end("Bad path");
+        return;
+      }
+
+      try {
+        let data = await fs.readFile(file);
+        response.writeHead(200);
+        response.end(data);
+      } catch (e) {
+        console.error(e);
+        response.writeHead(500);
+        response.end(`Error loading ${file}: ${e}`);
+      }
+      return;
+    }
+
     if (!urlPath.startsWith(`/${config.uuid}/`)) {
       return;
     }
