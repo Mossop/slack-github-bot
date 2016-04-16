@@ -3,6 +3,7 @@ import splitargs from "splitargs";
 
 import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
 import config from "../config";
+import { fetchPullRequest, fetchIssue } from "./github";
 
 function escape(text) {
   return text.replace(/&/g, "&amp;")
@@ -34,6 +35,10 @@ const REPO_EVENT_MAP = {
   "build": "onBuildEvent",
 };
 
+function formatCommit(commit) {
+  return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`;
+}
+
 const Commands = {
   "help": {
     info: "List commands for this bot.",
@@ -46,7 +51,7 @@ const Commands = {
           let command = Commands[params[0]];
           let response = escape(command.info);
           if (command.usage) {
-            response += `\nUsage: \`${escape(params[0])} ${command.usage}\``;
+            response += `\nUsage: \`${escape(params[0])} ${escape(command.usage)}\``;
           }
           respond(response);
         } else {
@@ -63,6 +68,40 @@ const Commands = {
         }
         respond(response);
       }
+    }
+  },
+
+  "pull": {
+    info: "Show a pull request.",
+    usage: "<#xx>",
+    validate({ params }) {
+      return params.length == 1;
+    },
+    async run({ params, respond }) {
+      let number = params[0];
+      if (number.startsWith("#")) {
+        number = number.substring(1);
+      }
+
+      let pr = await fetchPullRequest(config.repo, number);
+      respond(`Pull request #${pr.number}: <${pr.html_url}|${pr.title}>`);
+    }
+  },
+
+  "issue": {
+    info: "Show an issue.",
+    usage: "<#xx>",
+    validate({ params }) {
+      return params.length == 1;
+    },
+    async run({ params, respond }) {
+      let number = params[0];
+      if (number.startsWith("#")) {
+        number = number.substring(1);
+      }
+
+      let issue = await fetchIssue(config.repo, number);
+      respond(`Issue #${issue.number}: <${issue.html_url}|${issue.title}>`);
     }
   },
 
@@ -123,7 +162,7 @@ Useful paths:
 \`pullrequest <opened/closed/reopened>\`
 \`build <success/failure/changed> <branch/pullrequest> <id>\``,
     validate({ params }) {
-      if (params.length < 1 || params.length > 3) {
+      if (params.length < 1) {
         return false;
       }
 
@@ -270,17 +309,13 @@ class Bot {
 
     text += `branch <${escape(event.branch.url)}|${escape(event.branch.name)}>`;
 
-    let textify = (commit) => {
-      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`
-    };
-
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
       text,
       attachments: [{
         color: event.forced ? "danger" : "good",
-        text: event.commits.map(textify).join("\n"),
+        text: event.commits.map(formatCommit).join("\n"),
         mrkdwn_in: ["text"],
       }]
     };
@@ -290,10 +325,6 @@ class Bot {
 
   onBuildEvent(event) {
     let state = event.state == "success" ? "succeeded" : "failed";
-
-    let textify = (commit) => {
-      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`
-    };
 
     let text = "Build of ";
     if (event.path[2] == "pullrequest") {
@@ -308,7 +339,7 @@ class Bot {
       text += `failed.\n${escape(event.result)}\n`;
     }
 
-    text += event.commits.map(textify).join("\n");
+    text += event.commits.map(formatCommit).join("\n");
 
     let attachment = {
       color: event.state == "success" ? "good" : "danger",

@@ -9,7 +9,8 @@ Create a config.json that looks like this:
       "port": <IP port>,
       "uuid": "<A private ID, any string>",
       "slack_token": "<slack API token>",
-      "owner": "<a username that has full access to the bot>"
+      "owner": "<a username that has full access to the bot>",
+      "repo": "<repository for looking up issues and pull requests>"
     }
 
 Point GitHub's webhook to:

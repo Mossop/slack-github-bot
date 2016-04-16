@@ -20,32 +20,49 @@ const CI = {
   },
 };
 
-function fetchSender(info) {
+function promiseRequest(opts) {
+  opts = Object.assign({
+    headers: {
+      "User-Agent": "Mossop/slack-github-bot"
+    },
+  }, opts);
+
   return new Promise((resolve, reject) => {
-    request({
-      url: info.url,
-      headers: {
-        "User-Agent": "Mossop/slack-github-bot"
-      },
-    }, function(err, response, body) {
+    request(opts, (err, response, body) => {
       if (err) {
         reject(err);
         return;
       }
-
-      try {
-        let sender = JSON.parse(body);
-        resolve({
-          name: sender.login,
-          avatar: sender.avatar_url,
-          fullname: sender.name,
-        })
-      }
-      catch (e) {
-        reject(e);
-      }
+      resolve({ response, body });
     });
   });
+}
+
+async function fetchSender(info) {
+  let { body } = await promiseRequest({ url: info.url });
+
+  let sender = JSON.parse(body);
+  resolve({
+    name: sender.login,
+    avatar: sender.avatar_url,
+    fullname: sender.name,
+  })
+}
+
+export async function fetchIssue(repo, number) {
+  let { body } = await promiseRequest({
+    url: `https://api.github.com/repos/${repo}/issues/${number}`,
+  });
+
+  return JSON.parse(body);
+}
+
+export async function fetchPullRequest(repo, number) {
+  let { body } = await promiseRequest({
+    url: `https://api.github.com/repos/${repo}/pulls/${number}`,
+  });
+
+  return JSON.parse(body);
 }
 
 function makeRepository(repository) {

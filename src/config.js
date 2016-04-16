@@ -113,7 +113,7 @@ function setConfig(key, value) {
   saveConfig();
 }
 
-function getConfigAtPath(config, path, defaultValue) {
+function getConfigAtPath(config, path, defaultValue = undefined) {
   if (path.length == 0) {
     return config;
   }
