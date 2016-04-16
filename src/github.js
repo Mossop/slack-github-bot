@@ -111,6 +111,7 @@ class Github {
 
     let event = {
       type: "branch",
+      subtype: "pushed",
       forced: data.forced,
       url: data.compare,
       branch: {
@@ -125,11 +126,9 @@ class Github {
     event.branch.url = `${event.repository.url}/tree/${event.branch.name}`;
 
     if (data.created) {
-      event.subtype == "created";
+      event.subtype = "created";
     } else if (data.deleted) {
-      event.subtype == "deleted";
-    } else {
-      event.subtype = "pushed";
+      event.subtype = "deleted";
     }
 
     this.events.emit(event.type, event);
