@@ -130,7 +130,7 @@ class Github {
         case "issues":
           await this.parseIssueEvent(data);
           break;
-        case "pull-request":
+        case "pull_request":
           await this.parsePREvent(data);
           break;
         case "push":
