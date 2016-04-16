@@ -425,7 +425,7 @@ class Bot {
     }
 
     let params = splitargs(text.trim(), null, true);
-    let cmd = params.shift();
+    let cmd = params.shift().toLowerCase();
     if (!(cmd in Commands)) {
       respond("Sorry, I don't understand.");
       return;
