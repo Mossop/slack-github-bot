@@ -2,6 +2,7 @@ import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack
 import splitargs from "splitargs";
 
 import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
+import config from "../config";
 
 const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
@@ -43,7 +44,7 @@ const Commands = {
       } else {
         let response = "Here are the commands I support:";
         for (let name of Object.keys(Commands)) {
-          if (Commands[name].restricted && !isAdmin(this.owner, user, channel)) {
+          if (Commands[name].restricted && !isAdmin(config.owner, user, channel)) {
             continue;
           }
           response += "\n" + name + ": " + Commands[name].info;
@@ -140,7 +141,7 @@ const Commands = {
   }
 }
 
-function isAdmin(owner, user, channel) {
+function isAdmin(user, channel) {
   if (user.id == channel.creator) {
     return true;
   }
@@ -149,13 +150,13 @@ function isAdmin(owner, user, channel) {
     return true;
   }
 
-  return user.name == this.owner;
+  return user.name == config.owner;
 }
 
 function runCommand(bot, command, args) {
   let commandObj = Commands[command];
 
-  if (commandObj.restricted && !isAdmin(bot.owner, args.user, args.channel)) {
+  if (commandObj.restricted && !isAdmin(args.user, args.channel)) {
     args.respond("Sorry, you can't do that.");
     return;
   }
@@ -170,9 +171,7 @@ function runCommand(bot, command, args) {
 }
 
 class Bot {
-  constructor(token, owner, events) {
-    this.token = token;
-    this.owner = owner;
+  constructor(events) {
     this.channels = new Map();
     this.users = new Map();
     this.events = events;
@@ -182,8 +181,8 @@ class Bot {
       events.on(event, this[name].bind(this));
     }
 
-    this.client = new Client(token);
-    this.webClient = new WebClient(token);
+    this.client = new Client(config.slack_token);
+    this.webClient = new WebClient(config.slack_token);
 
     for (let event of Object.keys(SLACK_EVENT_MAP)) {
       this.client.on(event, this[SLACK_EVENT_MAP[event]].bind(this));

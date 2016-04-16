@@ -2,6 +2,8 @@ import http from "http";
 import path from "path";
 import url from "url";
 
+import config from "../config";
+
 // Github's maximum payload is 5MB, be a little generous
 const MAX_PAYLOAD = 1024 * 1024 * 6;
 
@@ -10,11 +12,10 @@ function isLocal(socket) {
 }
 
 class HttpListener {
-  constructor(events, port, uuid) {
+  constructor(events) {
     this.events = events;
-    this.uuid = uuid;
     this.server = http.createServer(this.handler.bind(this));
-    this.server.listen(port);
+    this.server.listen(config.port);
     this.events.on("destroy", this.destroy.bind(this));
   }
 
@@ -24,10 +25,10 @@ class HttpListener {
 
   handler(request, response) {
     let urlPath = url.parse(request.url).pathname;
-    if (!urlPath.startsWith(`/${this.uuid}/`)) {
+    if (!urlPath.startsWith(`/${config.uuid}/`)) {
       return;
     }
-    urlPath = urlPath.substring(this.uuid.length + 1);
+    urlPath = urlPath.substring(config.uuid.length + 1);
 
     if (urlPath == "/kill") {
       response.writeHead(200);
