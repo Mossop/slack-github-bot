@@ -4,6 +4,12 @@ import splitargs from "splitargs";
 import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
 import config from "../config";
 
+function escape(text) {
+  return text.replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;");
+}
+
 const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
   [CLIENT_EVENTS.RTM.WS_CLOSE]: "onDisconnected",
@@ -20,7 +26,7 @@ const SLACK_EVENT_MAP = {
 const REPO_EVENT_MAP = {
   "pullrequest": "onPullRequestEvent",
   "issue": "onIssueEvent",
-  "push": "onPushEvent",
+  "branch": "onBranchEvent",
 };
 
 const Commands = {
@@ -28,14 +34,14 @@ const Commands = {
     info: "List commands for this bot.",
     run({ channel, user, params, respond }) {
       if (params.length > 1) {
-        respond("Usage: help <command>");
+        respond(escape("Usage: help <command>"));
         return;
       } else if (params.length == 1) {
         if (params[0] in Commands) {
           let command = Commands[params[0]];
-          let response = command.info;
+          let response = escape(command.info);
           if (command.usage) {
-            response += "\n" + command.usage;
+            response += "\n" + escape(command.usage);
           }
           respond(response);
         } else {
@@ -47,7 +53,7 @@ const Commands = {
           if (Commands[name].restricted && !isAdmin(config.owner, user, channel)) {
             continue;
           }
-          response += "\n" + name + ": " + Commands[name].info;
+          response += "\n" + name + ": " + escape(Commands[name].info);
         }
         respond(response);
       }
@@ -95,7 +101,7 @@ const Commands = {
     },
     run({ params, respond }) {
       let name = params.length ? params[0] : "";
-      respond(JSON.stringify(getConfig(name, undefined)));
+      respond(escape(JSON.stringify(getConfig(name, undefined))));
     }
   },
 
@@ -195,39 +201,75 @@ class Bot {
     this.client.start({ no_unreads: true });
   }
 
-  sendEvent(type, subtype, message) {
+  sendEvent(message, ...path) {
     for (let channel of this.channels.values()) {
-      if (isEventEnabledForChannel(channel, type, subtype)) {
+      if (isEventEnabledForChannel(channel, ...path)) {
         this.sendMessage(channel, message);
       }
     }
   }
 
   onPullRequestEvent(event) {
-    this.sendEvent(event.type, event.subtype, {
+    let message = {
       username: event.source.name,
-      text: `${event.sender.fullname} ${event.subtype} pull request ${event.pullrequest.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.subtype} pull request ${event.pullrequest.name}.`,
       attachments: [{
-        fallback: `${event.pullrequest.title} ${event.pullrequest.url}`,
-        title: event.pullrequest.title,
-        title_link: event.pullrequest.url
+        fallback: `${escape(event.pullrequest.title)} ${escape(event.pullrequest.url)}`,
+        title: escape(event.pullrequest.title),
+        title_link: escape(event.pullrequest.url)
       }]
-    });
+    };
+
+    this.sendEvent(message, event.type, event.subtype);
   }
 
   onIssueEvent(event) {
-    this.sendEvent(event.type, event.subtype, {
+    let message = {
       username: event.source.name,
-      text: `${event.sender.fullname} ${event.subtype} issue ${event.issue.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.subtype} issue ${event.issue.name}.`,
       attachments: [{
-        fallback: `${event.issue.title} ${event.issue.url}`,
-        title: event.issue.title,
-        title_link: event.issue.url
+        fallback: `${escape(event.issue.title)} ${escape(event.issue.url)}`,
+        title: escape(event.issue.title),
+        title_link: escape(event.issue.url)
       }]
-    });
+    };
+
+    this.sendEvent(message, event.type, event.subtype);
   }
 
-  onPushEvent(event) {
+  onBranchEvent(event) {
+    let text = `${escape(event.sender.fullname)} `;
+
+    if (event.forced) {
+      text += "*force* ";
+    }
+
+    text += `${event.subtype} `;
+    if (event.subtype == "pushed") {
+      text += `<${escape(event.url)}|${event.commits.length} commit`;
+      if (event.commits.length != 1) {
+        text += "s";
+      }
+      text += "> to ";
+    }
+
+    text += `branch <${escape(event.branch.url)}|${escape(event.branch.name)}>`;
+
+    let textify = (commit) => {
+      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(commit.title)} - ${escape(commit.author)}`
+    };
+
+    let message = {
+      username: event.source.name,
+      text,
+      attachments: [{
+        color: event.forced ? "danger" : "good",
+        text: event.commits.map(textify).join("\n"),
+        mrkdwn_in: ["text"],
+      }]
+    };
+
+    this.sendEvent(message, event.type, event.subtype, event.branch.name)
   }
 
   sendMessage(channel, message) {

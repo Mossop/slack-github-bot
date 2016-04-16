@@ -110,13 +110,27 @@ class Github {
     }
 
     let event = {
-      type: "push",
+      type: "branch",
+      forced: data.forced,
       url: data.compare,
+      branch: {
+        name: data.ref.substring("refs/heads/".length),
+      },
       commits: data.commits.map(mungeCommit),
       repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
       source: GITHUB,
     };
+
+    event.branch.url = `${event.repository.url}/tree/${event.branch.name}`;
+
+    if (data.created) {
+      event.subtype == "created";
+    } else if (data.deleted) {
+      event.subtype == "deleted";
+    } else {
+      event.subtype = "pushed";
+    }
 
     this.events.emit(event.type, event);
   }
