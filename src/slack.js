@@ -41,7 +41,7 @@ const Commands = {
           let command = Commands[params[0]];
           let response = escape(command.info);
           if (command.usage) {
-            response += "\n" + escape(command.usage);
+            response += `\nUsage: \`${escape(params[0])} ${command.usage}\``;
           }
           respond(response);
         } else {
@@ -50,10 +50,11 @@ const Commands = {
       } else {
         let response = "Here are the commands I support:";
         for (let name of Object.keys(Commands)) {
-          if (Commands[name].restricted && !isAdmin(config.owner, user, channel)) {
+          let command = Commands[name];
+          if (command.restricted && !isAdmin(config.owner, user, channel)) {
             continue;
           }
-          response += "\n" + name + ": " + escape(Commands[name].info);
+          response += "\n" + name + ": " + escape(command.info.split("\n")[0]);
         }
         respond(response);
       }
@@ -70,7 +71,7 @@ const Commands = {
 
   "set-config": {
     restricted: true,
-    usage: "set-config <path> <value>",
+    usage: "<path> <value>",
     info: "Sets a configuration entry.",
     validate({ params }) {
       return params.length == 2;
@@ -94,7 +95,7 @@ const Commands = {
 
   "get-config": {
     restricted: true,
-    usage: "get-config <path>",
+    usage: "<path>",
     info: "Gets a configuration entry.",
     validate({ params }) {
       return params.length <= 1;
@@ -105,10 +106,15 @@ const Commands = {
     }
   },
 
-  "set": {
+  "event": {
     restricted: true,
-    usage: "set <type> <subtype> <on/off/default>",
-    info: "Control reporting of events to this channel.",
+    usage: "<...path> <on/off/default>",
+    info: `Control reporting of events to this channel.
+The path filters events. The more parts of the path you include the more specific the rule.
+Useful paths:
+\`branch <pushed/created/deleted> <branch name>\`
+\`issue <opened/closed/reopened>\`
+\`pullrequest <opened/closed/reopened>\``,
     validate({ params }) {
       if (params.length < 1 || params.length > 3) {
         return false;
@@ -135,7 +141,7 @@ const Commands = {
   },
 
   "test": {
-    usage: "test <type> <subtype>",
+    usage: "<type> <subtype>",
     info: "Test whether events will be reported to this channel.",
     validate({ params }) {
       return params.length <= 2;
