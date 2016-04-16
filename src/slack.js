@@ -11,7 +11,8 @@ const SLACK_EVENT_MAP = {
   [RTM_EVENTS.IM_CREATED]: "onChannelJoined",
   [RTM_EVENTS.CHANNEL_LEFT]: "onChannelLeft",
   [RTM_EVENTS.GROUP_LEFT]: "onChannelLeft",
-  [RTM_EVENTS.IM_CLOSE]: "onChannelLeft",
+  [RTM_EVENTS.TEAM_JOIN]: "onNewUser",
+  [RTM_EVENTS.USER_CHANGE]: "onNewUser",
   [RTM_EVENTS.MESSAGE]: "onMessage",
 };
 
@@ -24,7 +25,7 @@ const REPO_EVENT_MAP = {
 const Commands = {
   "help": {
     info: "List commands for this bot.",
-    run({ params, respond }) {
+    run({ channel, user, params, respond }) {
       if (params.length > 1) {
         respond("Usage: help <command>");
         return;
@@ -42,6 +43,9 @@ const Commands = {
       } else {
         let response = "Here are the commands I support:";
         for (let name of Object.keys(Commands)) {
+          if (Commands[name].restricted && !isAdmin(this.owner, user, channel)) {
+            continue;
+          }
           response += "\n" + name + ": " + Commands[name].info;
         }
         respond(response);
@@ -58,6 +62,7 @@ const Commands = {
   },
 
   "set-config": {
+    restricted: true,
     usage: "set-config <path> <value>",
     info: "Sets a configuration entry.",
     validate({ params }) {
@@ -81,6 +86,7 @@ const Commands = {
   },
 
   "get-config": {
+    restricted: true,
     usage: "get-config <path>",
     info: "Gets a configuration entry.",
     validate({ params }) {
@@ -93,6 +99,7 @@ const Commands = {
   },
 
   "set": {
+    restricted: true,
     usage: "set <type> <subtype> <on/off/default>",
     info: "Control reporting of events to this channel.",
     validate({ params }) {
@@ -133,20 +140,41 @@ const Commands = {
   }
 }
 
+function isAdmin(owner, user, channel) {
+  if (user.id == channel.creator) {
+    return true;
+  }
+
+  if (user.is_admin || user.is_owner || user.is_primary_owner) {
+    return true;
+  }
+
+  return user.name == this.owner;
+}
+
 function runCommand(bot, command, args) {
   let commandObj = Commands[command];
+
+  if (commandObj.restricted && !isAdmin(bot.owner, args.user, args.channel)) {
+    args.respond("Sorry, you can't do that.");
+    return;
+  }
+
   if ("validate" in commandObj && !commandObj.validate.call(bot, args)) {
     args.params = [command];
     runCommand(bot, "help", args);
     return;
   }
+
   commandObj.run.call(bot, args);
 }
 
 class Bot {
-  constructor(token, events) {
+  constructor(token, owner, events) {
     this.token = token;
+    this.owner = owner;
     this.channels = new Map();
+    this.users = new Map();
     this.events = events;
 
     for (let event of ["destroy"]) {
@@ -177,12 +205,21 @@ class Bot {
   }
 
   onPullRequestEvent(event) {
+    this.sendEvent(event.type, event.subtype, {
+      username: event.source.name,
+      text: `${event.sender.fullname} ${event.subtype} pull request ${event.pullrequest.name}.`,
+      attachments: [{
+        fallback: `${event.pullrequest.title} ${event.pullrequest.url}`,
+        title: event.pullrequest.title,
+        title_link: event.pullrequest.url
+      }]
+    });
   }
 
   onIssueEvent(event) {
     this.sendEvent(event.type, event.subtype, {
       username: event.source.name,
-      text: `${event.sender.fullname} filed issue ${event.issue.name}.`,
+      text: `${event.sender.fullname} ${event.subtype} issue ${event.issue.name}.`,
       attachments: [{
         fallback: `${event.issue.title} ${event.issue.url}`,
         title: event.issue.title,
@@ -228,6 +265,10 @@ class Bot {
 
       this.channels.set(channel.id, channel);
     }
+
+    for (let user of rtmData.users) {
+      this.users.set(user.id, user);
+    }
   }
 
   onDisconnected() {
@@ -265,7 +306,7 @@ class Bot {
     }
 
     try {
-      runCommand(this, cmd, { channel, respond, params });
+      runCommand(this, cmd, { channel, user: this.users.get(message.user), respond, params });
       return;
     }
     catch (e) {
@@ -292,6 +333,10 @@ class Bot {
       this.onDirectMessage(channel, message, message.text);
       return;
     }
+  }
+
+  onNewUser({ user }) {
+    this.users.set(user.id, user);
   }
 
   onDestroy() {

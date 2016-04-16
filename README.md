@@ -7,7 +7,8 @@ Create a config.json that looks like this:
     {
       "port": <IP port>,
       "uuid": "<A private ID, any string>",
-      "slack_token": "<slack API token>"
+      "slack_token": "<slack API token>",
+      "owner": "<a username that has full access to the bot>"
     }
 
 Point GitHub's webhook to:
@@ -31,3 +32,7 @@ Start the bot server:
 Stop the bot server:
 
     npm stop
+
+## Usage
+
+Say help to the bot!

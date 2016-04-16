@@ -18,5 +18,5 @@ eventStream.on("http", (payload) => {
   console.log("http " + data);
 });
 
-new Bot(config.slack_token, eventStream);
+new Bot(config.slack_token, config.owner, eventStream);
 new Github(eventStream);
