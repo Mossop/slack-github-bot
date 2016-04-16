@@ -107,7 +107,7 @@ const Commands = {
     }
   },
 
-  "event": {
+  "events": {
     restricted: true,
     usage: "<...path> <on/off/default>",
     info: `Control reporting of events to this channel.
@@ -220,7 +220,7 @@ class Bot {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.subtype} pull request ${event.pullrequest.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.path[1]} pull request ${event.pullrequest.name}.`,
       attachments: [{
         fallback: `${escape(event.pullrequest.title)} ${escape(event.pullrequest.url)}`,
         title: escape(event.pullrequest.title),
@@ -228,14 +228,14 @@ class Bot {
       }]
     };
 
-    this.sendEvent(message, event.type, event.subtype);
+    this.sendEvent(message, ...event.path);
   }
 
   onIssueEvent(event) {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.subtype} issue ${event.issue.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.path[1]} issue ${event.issue.name}.`,
       attachments: [{
         fallback: `${escape(event.issue.title)} ${escape(event.issue.url)}`,
         title: escape(event.issue.title),
@@ -243,7 +243,7 @@ class Bot {
       }]
     };
 
-    this.sendEvent(message, event.type, event.subtype);
+    this.sendEvent(message, ...event.path);
   }
 
   onBranchEvent(event) {
@@ -253,8 +253,8 @@ class Bot {
       text += "*force* ";
     }
 
-    text += `${event.subtype} `;
-    if (event.subtype == "pushed") {
+    text += `${event.path[1]} `;
+    if (event.path[1] == "pushed") {
       text += `<${escape(event.url)}|${event.commits.length} commit`;
       if (event.commits.length != 1) {
         text += "s";
@@ -279,7 +279,7 @@ class Bot {
       }]
     };
 
-    this.sendEvent(message, event.type, event.subtype, event.branch.name)
+    this.sendEvent(message, ...event.path)
   }
 
   sendMessage(channel, message) {

@@ -54,14 +54,17 @@ class Github {
     });
   }
 
+  emit(event) {
+    this.events.emit(event.path[0], event);
+  }
+
   async parseIssueEvent(data) {
     if (data.action != "opened" && data.action != "closed" && data.action != "reopened") {
       return;
     }
 
     let event = {
-      type: "issue",
-      subtype: data.action,
+      path: ["issue", data.action, data.issue.number],
       url: data.issue.html_url,
       issue: {
         name: data.issue.number,
@@ -74,7 +77,7 @@ class Github {
       source: GITHUB,
     };
 
-    this.events.emit(event.type, event);
+    this.emit(event);
   }
 
   async parsePREvent(data) {
@@ -83,8 +86,7 @@ class Github {
     }
 
     let event = {
-      type: "pullrequest",
-      subtype: data.action,
+      path: ["pullrequest", data.action, data.pull_request.number],
       url: data.pull_request.html_url,
       pullrequest: {
         name: data.pull_request.number,
@@ -97,7 +99,7 @@ class Github {
       source: GITHUB,
     };
 
-    this.events.emit(event.type, event);
+    this.emit(event);
   }
 
   async parsePushEvent(data) {
@@ -110,13 +112,14 @@ class Github {
       };
     }
 
+    let branchName = data.ref.substring("refs/heads/".length);
+
     let event = {
-      type: "branch",
-      subtype: "pushed",
+      path: ["branch", "pushed", branchName],
       forced: data.forced,
       url: data.compare,
       branch: {
-        name: data.ref.substring("refs/heads/".length),
+        name: branchName,
       },
       commits: data.commits.map(mungeCommit),
       repository: makeRepository(data.repository),
@@ -127,12 +130,12 @@ class Github {
     event.branch.url = `${event.repository.url}/tree/${event.branch.name}`;
 
     if (data.created) {
-      event.subtype = "created";
+      event.path[1] = "created";
     } else if (data.deleted) {
-      event.subtype = "deleted";
+      event.path[1] = "deleted";
     }
 
-    this.events.emit(event.type, event);
+    this.emit(event);
   }
 
   async parseEvent({ headers, body }) {
