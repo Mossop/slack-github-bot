@@ -10,6 +10,10 @@ function escape(text) {
              .replace(/>/g, "&gt;");
 }
 
+function firstline(text) {
+  return text.split("\n")[0];
+}
+
 const SLACK_EVENT_MAP = {
   [CLIENT_EVENTS.RTM.AUTHENTICATED]: "onConnected",
   [CLIENT_EVENTS.RTM.WS_CLOSE]: "onDisconnected",
@@ -27,6 +31,7 @@ const REPO_EVENT_MAP = {
   "pullrequest": "onPullRequestEvent",
   "issue": "onIssueEvent",
   "branch": "onBranchEvent",
+  "build": "onBuildEvent",
 };
 
 const Commands = {
@@ -54,7 +59,7 @@ const Commands = {
           if (command.restricted && !isAdmin(config.owner, user, channel)) {
             continue;
           }
-          response += "\n" + name + ": " + escape(command.info.split("\n")[0]);
+          response += "\n" + name + ": " + escape(firstline(command.info));
         }
         respond(response);
       }
@@ -115,7 +120,8 @@ The path filters events. The more parts of the path you include the more specifi
 Useful paths:
 \`branch <pushed/created/deleted> <branch name>\`
 \`issue <opened/closed/reopened>\`
-\`pullrequest <opened/closed/reopened>\``,
+\`pullrequest <opened/closed/reopened>\`
+\`build <success/failure/changed> <branch/pullrequest> <id>\``,
     validate({ params }) {
       if (params.length < 1 || params.length > 3) {
         return false;
@@ -265,7 +271,7 @@ class Bot {
     text += `branch <${escape(event.branch.url)}|${escape(event.branch.name)}>`;
 
     let textify = (commit) => {
-      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(commit.title)} - ${escape(commit.author)}`
+      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`
     };
 
     let message = {
@@ -280,6 +286,43 @@ class Bot {
     };
 
     this.sendEvent(message, ...event.path)
+  }
+
+  onBuildEvent(event) {
+    let state = event.state == "success" ? "succeeded" : "failed";
+
+    let textify = (commit) => {
+      return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`
+    };
+
+    let text = "Build of ";
+    if (event.path[2] == "pullrequest") {
+      text += `pull request ${event.path[3]} `
+    } else {
+      text += `branch <${event.branch.url}|${escape(event.path[3])}> `;
+    }
+
+    if (event.state == "success") {
+      text += "succeeded.\n";
+    } else {
+      text += `failed.\n${escape(event.result)}\n`;
+    }
+
+    text += event.commits.map(textify).join("\n");
+
+    let attachment = {
+      color: event.state == "success" ? "good" : "danger",
+      text,
+      mrkdwn_in: ["text"],
+    };
+
+    let message = {
+      username: event.source.name,
+      icon_url: event.source.avatar,
+      attachments: [attachment],
+    };
+
+    this.sendEvent(message, ...event.path);
   }
 
   sendMessage(channel, message) {

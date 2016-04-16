@@ -7,6 +7,19 @@ const GITHUB = {
   avatar: `http://${config.hostname}:${config.port}/static/github.png`,
 }
 
+const CI = {
+  "appveyor": {
+    name: "AppVeyor CI",
+    url: "https://www.appveyor.com",
+    avatar: `http://${config.hostname}:${config.port}/static/appveyor.png`,
+  },
+  "travis-ci": {
+    name: "Travis CI",
+    url: "https://travis-ci.org",
+    avatar: `http://${config.hostname}:${config.port}/static/travisci.png`,
+  },
+};
+
 function fetchSender(info) {
   return new Promise((resolve, reject) => {
     request({
@@ -52,6 +65,8 @@ class Github {
         this.parseEvent(data);
       }
     });
+
+    this.lastState = new Map();
   }
 
   emit(event) {
@@ -138,6 +153,70 @@ class Github {
     this.emit(event);
   }
 
+  async parseStatusEvent(data) {
+    if (data.state != "success" && data.state != "failure") {
+      return;
+    }
+
+    let context = data.context.split("/");
+    if (context.length != 3 || context[0] != "continuous-integration") {
+      return;
+    }
+
+    if (!(context[1] in CI)) {
+      return;
+    }
+
+    let event = {
+      path: ["build", data.state],
+      state: data.state,
+      result: data.description,
+      url: data.target_url,
+      commits: [{
+        id: data.commit.sha,
+        url: data.commit.html_url,
+        title: data.commit.commit.message,
+        author: data.commit.commit.author.name,
+      }],
+      repository: makeRepository(data.repository),
+      source: CI[context[1]],
+    };
+
+    let id = undefined;
+    let type = context[2];
+    if (type == "pr") {
+      type = "pullrequest";
+      // No sane way to get the pull request number from this event :(
+      // id = "1";
+      return;
+    } else if (type == "push") {
+      type = "branch";
+    } else if (type != "branch") {
+      return;
+    }
+
+    if (type == "branch") {
+      id = data.branches[0].name;
+      event.branch = {
+        name: id,
+        url: `${event.repository.url}/tree/${id}`
+      }
+    }
+
+    event.path.push(type, id);
+
+    this.emit(event);
+
+    let key = `${type}-${id}`;
+    let lastState = this.lastState.get(key);
+    if (lastState && lastState != data.state) {
+      event.path[1] = "changed";
+      this.emit(event);
+    }
+
+    this.lastState.set(key, data.state);
+  }
+
   async parseEvent({ headers, body }) {
     try {
       let data = JSON.parse(body);
@@ -152,6 +231,9 @@ class Github {
           break;
         case "push":
           await this.parsePushEvent(data);
+          break;
+        case "status":
+          await this.parseStatusEvent(data);
           break;
       }
     }

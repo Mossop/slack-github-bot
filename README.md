@@ -5,6 +5,7 @@ A helpful bot for monitoring github project development
 Create a config.json that looks like this:
 
     {
+      "hostname" "<hostname>",
       "port": <IP port>,
       "uuid": "<A private ID, any string>",
       "slack_token": "<slack API token>",
@@ -14,14 +15,6 @@ Create a config.json that looks like this:
 Point GitHub's webhook to:
 
     http://<your server>:<your port>/<your uuid>/github
-
-Point AppVeyor's webhook to:
-
-    http://<your server>:<your port>/<your uuid>/appveyor
-
-Point Travis CI's webhook to:
-
-    http://<your server>:<your port>/<your uuid>/travis
 
 ## Running
 
