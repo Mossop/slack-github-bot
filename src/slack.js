@@ -62,6 +62,7 @@ const Commands = {
   },
 
   "shutdown": {
+    restricted: true,
     info: "Shuts down this bot.",
     run({ params, respond }) {
       respond("Bye.");
