@@ -1,4 +1,4 @@
-import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "slack-client";
+import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "@slack/client";
 import splitargs from "splitargs";
 
 import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
