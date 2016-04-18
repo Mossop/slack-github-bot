@@ -5,6 +5,8 @@ import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConf
 import config from "../config";
 import { fetchPullRequest, fetchIssue } from "./github";
 
+const LOG_LENGTH = 1000;
+
 function escape(text) {
   return text.replace(/&/g, "&amp;")
              .replace(/</g, "&lt;")
@@ -196,6 +198,29 @@ Useful paths:
       let result = isEventEnabledForChannel(channel, ...params);
       respond(result ? "on" : "off");
     }
+  },
+
+  "log": {
+    restricted: true,
+    usage: "<count>",
+    info: "Show the most recent log entries.",
+    validate({ params }) {
+      return params.length <= 1;
+    },
+    run({ params, respond }) {
+      let count = this.log.length;
+      if (params.length) {
+        count = Math.min(parseInt(params[0]), count);
+      }
+
+      if (count == 0) {
+        respond("No log messages.");
+      }
+      else {
+        let messages = this.log.slice(0, count);
+        respond(messages.join("\n"));
+      }
+    }
   }
 }
 
@@ -233,6 +258,7 @@ class Bot {
     this.channels = new Map();
     this.users = new Map();
     this.events = events;
+    this.log = [];
 
     for (let event of ["destroy"]) {
       let name = "on" + event.charAt(0).toUpperCase() + event.substring(1);
@@ -242,18 +268,44 @@ class Bot {
     this.client = new Client(config.slack_token);
     this.webClient = new WebClient(config.slack_token);
 
-    for (let event of Object.keys(SLACK_EVENT_MAP)) {
-      this.client.on(event, this[SLACK_EVENT_MAP[event]].bind(this));
-    }
+    Object.keys(SLACK_EVENT_MAP).forEach((event) => {
+      this.client.on(event, (...args) => {
+        try {
+          this[SLACK_EVENT_MAP[event]](...args);
+        }
+        catch (e) {
+          this.logError(event, e);
+        }
+      });
+    });
 
-    for (let event of Object.keys(REPO_EVENT_MAP)) {
-      this.events.on(event, this[REPO_EVENT_MAP[event]].bind(this));
-    }
+    Object.keys(REPO_EVENT_MAP).forEach((event) => {
+      this.events.on(event, (...args) => {
+        try {
+          this[REPO_EVENT_MAP[event]](...args);
+        }
+        catch (e) {
+          this.logError(event, e);
+        }
+      });
+    });
 
     this.client.start({ no_unreads: true });
   }
 
+  log(...args) {
+    this.log.unshift(args.join(" "));
+    while (this.log.length > LOG_LENGTH) {
+      this.log.pop();
+    }
+  }
+
+  logError(...args) {
+    this.log("Error:", ...args);
+  }
+
   sendEvent(message, ...path) {
+    this.log("Sending event", ...path);
     for (let channel of this.channels.values()) {
       if (isEventEnabledForChannel(channel, ...path)) {
         this.sendMessage(channel, message);
@@ -262,6 +314,8 @@ class Bot {
   }
 
   onPullRequestEvent(event) {
+    this.log("Saw event", ...event.path);
+
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
@@ -277,6 +331,8 @@ class Bot {
   }
 
   onIssueEvent(event) {
+    this.log("Saw event", ...event.path);
+
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
@@ -292,6 +348,8 @@ class Bot {
   }
 
   onBranchEvent(event) {
+    this.log("Saw event", ...event.path);
+
     let text = `${escape(event.sender.fullname)} `;
 
     if (event.forced) {
@@ -324,6 +382,8 @@ class Bot {
   }
 
   onBuildEvent(event) {
+    this.log("Saw event", ...event.path);
+
     let state = event.state == "success" ? "succeeded" : "failed";
 
     let text = "Build of ";
