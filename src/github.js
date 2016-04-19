@@ -178,6 +178,9 @@ class Github {
 
   async parseStatusEvent(data) {
     this.events.emit("log", "github", "status", data.state, data.context);
+    if (data.state == "error") {
+      data.state = "failure";
+    }
     if (data.state != "success" && data.state != "failure") {
       return;
     }
