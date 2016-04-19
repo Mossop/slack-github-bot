@@ -367,6 +367,7 @@ class Bot {
       icon_url: event.source.avatar,
       text,
       attachments: [{
+        fallback: text,
         color: event.forced ? "danger" : "good",
         text: event.commits.map(formatCommit).join("\n"),
         mrkdwn_in: ["text"],
@@ -394,13 +395,14 @@ class Bot {
       text += `failed.\n${escape(event.result)}\n`;
     }
 
-    text += event.commits.map(formatCommit).join("\n");
-
     let attachment = {
+      fallback: text,
       color: event.state == "success" ? "good" : "danger",
       text,
       mrkdwn_in: ["text"],
     };
+
+    attachment.text += event.commits.map(formatCommit).join("\n");
 
     let message = {
       username: event.source.name,
