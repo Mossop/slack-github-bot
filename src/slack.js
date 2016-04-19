@@ -217,7 +217,8 @@ Useful paths:
         respond("No log messages.");
       }
       else {
-        let messages = this.log.slice(0, count);
+        let messages = this.log.slice(0, count).map(m => m.join(" "));
+        messages.reverse();
         respond(messages.join("\n"));
       }
     }
@@ -253,6 +254,17 @@ function runCommand(bot, command, args) {
   commandObj.run.call(bot, args);
 }
 
+function safeCallback(self, func) {
+  return function(...args) {
+    try {
+      func(...args);
+    }
+    catch (e) {
+      self.events.emit("error", e, e.stack);
+    }
+  }
+}
+
 class Bot {
   constructor(events) {
     this.channels = new Map();
@@ -265,47 +277,32 @@ class Bot {
       events.on(event, this[name].bind(this));
     }
 
+    let appendLog = (...args) => {
+      this.log.unshift(args);
+      while (this.log.length > LOG_LENGTH) {
+        this.log.pop();
+      }
+    };
+
+    events.on("log", appendLog.bind(null, "log"));
+    events.on("error", appendLog.bind(null, "error"));
+
     this.client = new Client(config.slack_token);
     this.webClient = new WebClient(config.slack_token);
 
-    Object.keys(SLACK_EVENT_MAP).forEach((event) => {
-      this.client.on(event, (...args) => {
-        try {
-          this[SLACK_EVENT_MAP[event]](...args);
-        }
-        catch (e) {
-          this.logError(event, e);
-        }
-      });
-    });
+    for (let event of Object.keys(SLACK_EVENT_MAP)) {
+      this.client.on(event, safeCallback(this, this[SLACK_EVENT_MAP[event]].bind(this)));
+    }
 
-    Object.keys(REPO_EVENT_MAP).forEach((event) => {
-      this.events.on(event, (...args) => {
-        try {
-          this[REPO_EVENT_MAP[event]](...args);
-        }
-        catch (e) {
-          this.logError(event, e);
-        }
-      });
-    });
+    for (let event of Object.keys(REPO_EVENT_MAP)) {
+      this.events.on(event, safeCallback(this, this[REPO_EVENT_MAP[event]].bind(this)));
+    }
 
     this.client.start({ no_unreads: true });
   }
 
-  log(...args) {
-    this.log.unshift(args.join(" "));
-    while (this.log.length > LOG_LENGTH) {
-      this.log.pop();
-    }
-  }
-
-  logError(...args) {
-    this.log("Error:", ...args);
-  }
-
   sendEvent(message, ...path) {
-    this.log("Sending event", ...path);
+    this.events.emit("log", "Sending event", ...path);
     for (let channel of this.channels.values()) {
       if (isEventEnabledForChannel(channel, ...path)) {
         this.sendMessage(channel, message);
@@ -314,7 +311,7 @@ class Bot {
   }
 
   onPullRequestEvent(event) {
-    this.log("Saw event", ...event.path);
+    this.events.emit("log", "Saw event", ...event.path);
 
     let message = {
       username: event.source.name,
@@ -331,8 +328,6 @@ class Bot {
   }
 
   onIssueEvent(event) {
-    this.log("Saw event", ...event.path);
-
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
@@ -348,7 +343,7 @@ class Bot {
   }
 
   onBranchEvent(event) {
-    this.log("Saw event", ...event.path);
+    this.events.emit("log", "Saw event", ...event.path);
 
     let text = `${escape(event.sender.fullname)} `;
 
@@ -382,7 +377,7 @@ class Bot {
   }
 
   onBuildEvent(event) {
-    this.log("Saw event", ...event.path);
+    this.events.emit("log", "Saw event", ...event.path);
 
     let state = event.state == "success" ? "succeeded" : "failed";
 
@@ -430,11 +425,11 @@ class Bot {
       options.attachments = JSON.stringify(options.attachments);
     }
 
-    this.webClient.chat.postMessage(channel.id, text, options, function(err, response) {
+    this.webClient.chat.postMessage(channel.id, text, options, (err, response) => {
       if (err) {
-        console.error(err);
+        this.events.emit("error", err);
       } else if (response && !response.ok) {
-        console.error(response);
+        this.events.emit("error", response);
       }
     });
   }

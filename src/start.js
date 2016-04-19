@@ -13,9 +13,10 @@ eventStream.on("http", (payload) => {
   if (data.length > (72)) {
     data = data.substr(0, 33) + " ... " + data.substr(-33, 33);
   }
-
-  console.log("http " + data);
 });
+
+eventStream.on("log", console.log.bind(console));
+eventStream.on("error", console.error.bind(console));
 
 new Bot(eventStream);
 new Github(eventStream);

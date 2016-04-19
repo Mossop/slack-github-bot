@@ -42,11 +42,11 @@ async function fetchSender(info) {
   let { body } = await promiseRequest({ url: info.url });
 
   let sender = JSON.parse(body);
-  resolve({
+  return {
     name: sender.login,
     avatar: sender.avatar_url,
     fullname: sender.name,
-  })
+  };
 }
 
 export async function fetchIssue(repo, number) {
@@ -91,6 +91,8 @@ class Github {
   }
 
   async parseIssueEvent(data) {
+    this.events.emit("log", "github", "issue", data.action, data.issue.number);
+
     if (data.action != "opened" && data.action != "closed" && data.action != "reopened") {
       return;
     }
@@ -113,6 +115,8 @@ class Github {
   }
 
   async parsePREvent(data) {
+    this.events.emit("log", "github", "pullrequest", data.action, data.pull_request.number);
+
     if (data.action != "opened" && data.action != "closed" && data.action != "reopened") {
       return;
     }
@@ -135,6 +139,8 @@ class Github {
   }
 
   async parsePushEvent(data) {
+    this.events.emit("log", "github", "push", data.ref);
+
     function mungeCommit(commit) {
       return {
         id: commit.id,
@@ -171,6 +177,7 @@ class Github {
   }
 
   async parseStatusEvent(data) {
+    this.events.emit("log", "github", "status", data.state, data.context);
     if (data.state != "success" && data.state != "failure") {
       return;
     }
@@ -252,10 +259,12 @@ class Github {
         case "status":
           await this.parseStatusEvent(data);
           break;
+        default:
+          this.events.emit("log", "github", event);
       }
     }
     catch (e) {
-      console.error(e);
+      this.events.emit("error", e, e.stack);
     }
   }
 }

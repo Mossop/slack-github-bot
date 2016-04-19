@@ -43,7 +43,7 @@ class HttpListener {
         response.writeHead(200);
         response.end(data);
       } catch (e) {
-        console.error(e);
+        this.events.emit("error", e, e.skip);
         response.writeHead(500);
         response.end(`Error loading ${file}: ${e}`);
       }
@@ -67,13 +67,14 @@ class HttpListener {
       body += data;
 
       if (body.length > MAX_PAYLOAD) {
-        console.error("Terminating request for sending too much data");
+        this.events.emit("error", "Terminating request for sending too much data");
         response.writeHead(500);
         response.end("Too much data");
       }
     });
 
     request.on("end", () => {
+      this.events.emit("log", "http", urlPath);
       this.events.emit("http", {
         path: urlPath,
         headers: request.headers,
