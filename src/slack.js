@@ -168,7 +168,7 @@ Useful paths:
 
       let targetChannel = channel;
       if (params.length && params[0].startsWith("<#") && params[0].endsWith(">")) {
-        const id = params[0].substring(2, params[0].length - 2);
+        const id = params[0].substring(2, params[0].length - 1);
         targetChannel = this.channels.get(id);
         if (!targetChannel) {
           respond("Unknown channel.");
