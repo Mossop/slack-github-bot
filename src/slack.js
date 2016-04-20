@@ -167,8 +167,9 @@ Useful paths:
       const { channel, params, respond } = args;
 
       let targetChannel = channel;
-      if (params.length && params[0].startsWith("<#") && params[0].endsWith(".")) {
-        targetChannel = this.channels.get(params[0].substring(0, params[0].length - 2));
+      if (params.length && params[0].startsWith("<#") && params[0].endsWith(">")) {
+        const id = params[0].substring(2, params[0].length - 2);
+        targetChannel = this.channels.get(id);
         if (!targetChannel) {
           respond("Unknown channel.");
           return;
@@ -195,7 +196,7 @@ Useful paths:
         respond("Ok.");
       } else {
         let events = getEventsForChannel(targetChannel);
-        respond(events.map(e => e.join(" ")).join("\n"));
+        respond("Event settings:\n" + events.map(e => "`" + e.join(" ") + "`").join("\n"));
       }
     }
   },
