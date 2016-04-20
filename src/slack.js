@@ -482,6 +482,8 @@ class Bot {
     }
 
     let params = splitargs(text.trim(), null, true);
+    this.events.emit("log", "directmessage", ...params);
+
     let cmd = params.shift().toLowerCase();
     if (!(cmd in Commands)) {
       respond("Sorry, I don't understand.");
