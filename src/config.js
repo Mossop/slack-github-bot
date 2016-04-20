@@ -49,10 +49,10 @@ function getEventsForChannel(channel) {
   if (channel.id in CONFIG.eventRules.rules) {
     getEventsForRules(events, [], CONFIG.eventRules.rules[channel.id]);
     if (!("default" in CONFIG.eventRules.rules[channel.id])) {
-      events.push("off");
+      events.push(["off"]);
     }
   } else {
-    events.push("off");
+    events.push(["off"]);
   }
 
   return events;
