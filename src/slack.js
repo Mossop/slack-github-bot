@@ -1,7 +1,7 @@
 import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "@slack/client";
 import splitargs from "splitargs";
 
-import { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
+import { getEventsForChannel, isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
 import config from "../config";
 import { fetchPullRequest, fetchIssue } from "./github";
 
@@ -163,28 +163,40 @@ Useful paths:
 \`issue <opened/closed/reopened>\`
 \`pullrequest <opened/closed/reopened>\`
 \`build <success/failure/changed> <branch/pullrequest> <id>\``,
-    validate({ params }) {
-      if (params.length < 1) {
-        return false;
+    run(args) {
+      const { channel, params, respond } = args;
+
+      let targetChannel = channel;
+      if (params.length && params[0].startsWith("<#") && params[0].endsWith(".")) {
+        targetChannel = this.channels.get(params[0].substring(0, params[0].length - 2));
+        if (!targetChannel) {
+          respond("Unknown channel.");
+          return;
+        }
+
+        params.pop();
       }
 
-      let state = params[params.length - 1];
-      if (state != "on" && state != "off" && state != "default") {
-        return false;
-      }
+      if (params.length) {
+        let state = params.pop();
+        if (state == "default") {
+          state = undefined;
+        } else if (state == "on") {
+          state = true;
+        } else if (state == "off") {
+          state = false;
+        } else {
+          args.params = "events";
+          runCommand(this, "help", args);
+          return;
+        }
 
-      return true;
-    },
-    run({ channel, params, respond }) {
-      let state = params.pop();
-      if (state == "default") {
-        state = undefined;
+        setEventEnabledForChannel(state, targetChannel, ...params);
+        respond("Ok.");
       } else {
-        state = state == "on";
+        let events = getEventsForChannel(targetChannel);
+        respond(events.map(e => e.join(" ")).join("\n"));
       }
-
-      setEventEnabledForChannel(state, channel, ...params);
-      respond("Ok.");
     }
   },
 

@@ -34,6 +34,30 @@ function saveConfig() {
   }
 }
 
+function getEventsForRules(events, prefix, config) {
+  for (let key of Object.keys(config.rules)) {
+    getEventsForRules(events, prefix.concat(key), config.rules[key]);
+  }
+
+  if ("default" in config) {
+    events.push(prefix.concat(config.default ? "on" : "off"));
+  }
+}
+
+function getEventsForChannel(channel) {
+  let events = [];
+  if (channel.id in CONFIG.eventRules.rules) {
+    getEventsForRules(events, [], CONFIG.eventRules.rules[channel.id]);
+    if (!("default" in CONFIG.eventRules.rules[channel.id])) {
+      events.push("off");
+    }
+  } else {
+    events.push("off");
+  }
+
+  return events;
+}
+
 function setEventEnabledForPath(enabled, config, path) {
   if (path.length == 0) {
     if (enabled === undefined) {
@@ -136,4 +160,4 @@ function getConfig(key, defaultValue) {
 
 loadConfig();
 
-export { isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig };
+export { getEventsForChannel, isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig };
