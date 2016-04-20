@@ -174,7 +174,7 @@ Useful paths:
           return;
         }
 
-        params.pop();
+        params.shift();
       }
 
       if (params.length) {
@@ -186,7 +186,7 @@ Useful paths:
         } else if (state == "off") {
           state = false;
         } else {
-          args.params = "events";
+          args.params = ["events"];
           runCommand(this, "help", args);
           return;
         }
