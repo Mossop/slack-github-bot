@@ -438,6 +438,8 @@ class Bot {
       text += `failed.\n${escape(event.result)}\n`;
     }
 
+    text += `<${event.url}|See results>.`;
+
     let attachment = {
       fallback: text,
       color: event.state == "success" ? "good" : "danger",
