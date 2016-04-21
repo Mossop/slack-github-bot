@@ -33,6 +33,9 @@ function promiseRequest(opts) {
         reject(err);
         return;
       }
+      if (response.statusCode != 200) {
+        reject(response.statusMessage);
+      }
       resolve({ response, body });
     });
   });
@@ -54,7 +57,11 @@ export async function fetchIssue(repo, number) {
     url: `https://api.github.com/repos/${repo}/issues/${number}`,
   });
 
-  return JSON.parse(body);
+  let data = JSON.parse(body);
+  if ("pull_request" in data) {
+    throw new Error("This is a pull request.");
+  }
+  return data;
 }
 
 export async function fetchPullRequest(repo, number) {

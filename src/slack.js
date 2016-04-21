@@ -7,6 +7,10 @@ import { fetchPullRequest, fetchIssue } from "./github";
 
 const LOG_LENGTH = 1000;
 
+const url_regex = /\bhttp(?:s)?:\/\/github.com\/(\w+\/\w+)\/(pull|issues)\/(\d+)\b/g;
+const lookup_regex = /\b(issue|pull request|pr|pull) (\d+)\b/g;
+const id_regex = /(?:\s|^)#(\d+)\b/g;
+
 function escape(text) {
   return text.replace(/&/g, "&amp;")
              .replace(/</g, "&lt;")
@@ -39,6 +43,22 @@ const REPO_EVENT_MAP = {
 
 function formatCommit(commit) {
   return `\`<${escape(commit.url)}|${escape(commit.id.substring(0, 8))}>\` ${escape(firstline(commit.title))} - ${escape(commit.author)}`;
+}
+
+function formatPullRequest(pr) {
+  let text = `Pull request #${pr.number}: <${pr.html_url}|${pr.title}>`;
+  if (pr.state == "closed") {
+    text += " (Closed)";
+  }
+  return text;
+}
+
+function formatIssue(issue) {
+  let text = `Issue #${issue.number}: <${issue.html_url}|${issue.title}>`;
+  if (issue.state == "closed") {
+    text += " (Closed)";
+  }
+  return text;
 }
 
 const Commands = {
@@ -85,8 +105,13 @@ const Commands = {
         number = number.substring(1);
       }
 
-      let pr = await fetchPullRequest(config.repo, number);
-      respond(`Pull request #${pr.number}: <${pr.html_url}|${pr.title}>`);
+      try {
+        let pr = await fetchPullRequest(config.repo, number);
+        respond(formatPullRequest(pr));
+      }
+      catch (e) {
+        respond(`Error looking up pull request.`);
+      }
     }
   },
 
@@ -102,8 +127,13 @@ const Commands = {
         number = number.substring(1);
       }
 
-      let issue = await fetchIssue(config.repo, number);
-      respond(`Issue #${issue.number}: <${issue.html_url}|${issue.title}>`);
+      try {
+        let issue = await fetchIssue(config.repo, number);
+        respond(formatIssue(issue));
+      }
+      catch (e) {
+        respond(`Error looking up issue.`);
+      }
     }
   },
 
@@ -530,6 +560,51 @@ class Bot {
     if (channel.is_im) {
       this.onDirectMessage(channel, message, message.text);
       return;
+    }
+
+    let maybePullRequest = (repo, number) => {
+      this.events.emit("log", "lookup", "pull", repo, number);
+      fetchPullRequest(repo, number).then(data => {
+        this.sendMessage(channel, { text: formatPullRequest(data) });
+      });
+    };
+
+    let maybeIssue = (repo, number) => {
+      this.events.emit("log", "lookup", "issue", repo, number);
+      fetchIssue(repo, number).then(data => {
+        this.sendMessage(channel, { text: formatIssue(data) });
+      });
+    };
+
+    let results;
+    while ((results = url_regex.exec(message.text)) !== null) {
+      let repo = results[1];
+      let type = results[2];
+      let number = results[3];
+
+      if (type == "issues") {
+        maybeIssue(repo, number);
+      } else {
+        maybePullRequest(repo, number);
+      }
+    }
+
+    while ((results = lookup_regex.exec(message.text)) !== null) {
+      let type = results[1];
+      let number = results[2];
+
+      if (type == "issue") {
+        maybeIssue(config.repo, number);
+      } else {
+        maybePullRequest(config.repo, number);
+      }
+    }
+
+    while ((results = id_regex.exec(message.text)) !== null) {
+      let number = results[1];
+
+      maybeIssue(config.repo, number);
+      maybePullRequest(config.repo, number);
     }
   }
 
