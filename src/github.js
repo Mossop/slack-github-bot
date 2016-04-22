@@ -243,7 +243,7 @@ class Github {
 
     let key = `${context[1]}-${type}-${id}`;
     let lastState = this.lastState.get(key);
-    if (lastState && lastState != data.state) {
+    if (!lastState && lastState != data.state) {
       event.path[1] = "changed";
       this.emit(event);
     }
