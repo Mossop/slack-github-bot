@@ -433,12 +433,12 @@ class Bot {
     }
 
     if (event.state == "success") {
-      text += "succeeded.\n";
+      text += "succeeded.";
     } else {
-      text += `failed.\n${escape(event.result)}\n`;
+      text += `failed.\n${escape(event.result)}`;
     }
 
-    text += `<${event.url}|See results>.`;
+    text += ` <${event.url}|See results>.\n`;
 
     let attachment = {
       fallback: text,
