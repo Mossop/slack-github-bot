@@ -74,7 +74,7 @@ class HttpListener {
     });
 
     request.on("end", () => {
-      this.events.emit("log", "http", urlPath);
+      this.events.emit("log", "http", urlPath, new Date());
       this.events.emit("http", {
         path: urlPath,
         headers: request.headers,
