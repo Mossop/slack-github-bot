@@ -260,7 +260,7 @@ Useful paths:
         respond("No log messages.");
       }
       else {
-        let messages = this.log.slice(0, count).map(m => m.join(" "));
+        let messages = this.log.slice(0, count).map(m => "`" + m.join(" ") + "`");
         messages.reverse();
         respond(messages.join("\n"));
       }
