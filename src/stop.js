@@ -1,7 +1,6 @@
 import http from "http";
-import config from "../config"
 
 http.request({
-  port: config.port,
-  path: `/${config.uuid}/kill`
+  port: process.env.PORT,
+  path: `/${process.env.UUID}/kill`
 }).end();

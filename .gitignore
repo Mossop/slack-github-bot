@@ -1,3 +1,6 @@
+# Heroku settings
+.env
+
 # Logs
 logs
 *.log

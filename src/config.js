@@ -1,163 +1,67 @@
-import fs from "fs";
-import path from "path";
+"use strict";
 
-const CONFIG = {
-  eventRules: {
-    rules: {}
-  }
-};
+const MongoClient = require("mongodb").MongoClient
 
-const configFile = path.join(path.dirname(path.resolve(__dirname)), "prefs.json");
+const URI = process.env.MONGODB_URI;
 
-function loadConfig() {
-  try {
-    let settings = fs.readFileSync(configFile, { encoding: "utf8" });
-    let newConfig = JSON.parse(settings);
+function withDB(callback) {
+  return function(...args) {
+    return new Promise((resolve, reject) => {
+      MongoClient.connect(URI, function(err, db) {
+        if (err) {
+          reject(err);
+          return;
+        }
 
-    for (let name of Object.keys(CONFIG)) {
-      delete CONFIG[name];
-    }
-
-    for (let name of Object.keys(newConfig)) {
-      CONFIG[name] = newConfig[name];
-    }
-  } catch (e) {
-    console.error("Failed to load preferences.", e);
-  }
-}
-
-function saveConfig() {
-  try {
-    fs.writeFileSync(configFile, JSON.stringify(CONFIG));
-  } catch (e) {
-    console.error("Failed to save preferences.", e);
+        callback(db, ...args).then(result => {
+          db.close();
+          resolve(result);
+        }, result => {
+          db.close();
+          reject(result);
+        });
+      });
+    });
   }
 }
 
-function getEventsForRules(events, prefix, config) {
-  for (let key of Object.keys(config.rules)) {
-    getEventsForRules(events, prefix.concat(key), config.rules[key]);
-  }
+export const getConfigForPath = withDB(async function(db, path) {
+  let collection = db.collection("paths");
 
-  if ("default" in config) {
-    events.push(prefix.concat(config.default ? "on" : "off"));
-  }
-}
-
-function getEventsForChannel(channel) {
-  let events = [];
-  if (channel.id in CONFIG.eventRules.rules) {
-    getEventsForRules(events, [], CONFIG.eventRules.rules[channel.id]);
-    if (!("default" in CONFIG.eventRules.rules[channel.id])) {
-      events.push(["off"]);
+  path = path.slice(0);
+  while (path.length > 0) {
+    let config = await collection.findOne({ path });
+    if (config) {
+      return config;
     }
-  } else {
-    events.push(["off"]);
+
+    path.pop();
   }
 
-  return events;
-}
+  return null;
+});
 
-function setEventEnabledForPath(enabled, config, path) {
-  if (path.length == 0) {
-    if (enabled === undefined) {
-      delete config.default;
-    } else {
-      config.default = enabled;
-    }
-    return;
-  }
+export const setConfigForPath = withDB(async function(db, path, config) {
+  let collection = db.collection("paths");
 
-  if (!(path[0] in config.rules)) {
-    config.rules[path[0]] = {
-      rules: {}
+  if (config) {
+    let doc = {
+      path,
+      ...config,
     };
+
+    await collection.findOneAndReplace({ path }, doc, { upsert: true });
   }
-
-  setEventEnabledForPath(enabled, config.rules[path[0]], path.slice(1));
-}
-
-function setEventEnabledForChannel(enabled, channel, ...args) {
-  setEventEnabledForPath(enabled, CONFIG.eventRules, [channel.id, ...args]);
-
-  saveConfig();
-}
-
-function isEventEnabledForPath(config, path) {
-  if (path.length > 0 && path[0] in config.rules) {
-    let result = isEventEnabledForPath(config.rules[path[0]], path.slice(1));
-    if (result !== undefined) {
-      return result;
-    }
+  else {
+    await collection.findOneAndDelete({ path });
   }
+});
 
-  if ("default" in config) {
-    return config.default;
-  }
+export const getConfigForPathPrefix = withDB(async function(db, prefix) {
+  let collection = db.collection("paths");
 
-  return undefined;
-}
+  let query = {};
+  prefix.forEach((p, i) => { query[`path.${i}`] = p });
 
-function isEventEnabledForChannel(channel, ...args) {
-  let result = isEventEnabledForPath(CONFIG.eventRules, [channel.id, ...args]);
-
-  if (result !== undefined) {
-    return result;
-  }
-
-  return false;
-}
-
-function setConfigAtPath(config, path, value) {
-  if (path.length == 1) {
-    if (value === undefined) {
-      delete config[path[0]];
-    } else {
-      config[path[0]] = value;
-    }
-
-    return;
-  }
-
-  if (!(path[0] in config)) {
-    config[path[0]] = {};
-  }
-
-  setConfigAtPath(config[path[0]], path.slice(1), value);
-}
-
-function setConfig(key, value) {
-  if (key == "") {
-    throw new Error("Cannot override the root config");
-  }
-
-  let path = key.split(".");
-  setConfigAtPath(CONFIG, path, value);
-
-  saveConfig();
-}
-
-function getConfigAtPath(config, path, defaultValue = undefined) {
-  if (path.length == 0) {
-    return config;
-  }
-
-  if (path[0] in config) {
-    return getConfigAtPath(config[path[0]], path.slice(0));
-  }
-
-  return defaultValue;
-}
-
-function getConfig(key, defaultValue) {
-  if (key == "") {
-    return CONFIG;
-  }
-
-  let path = key.split(".");
-  return getConfigAtPath(CONFIG, path, defaultValue);
-}
-
-loadConfig();
-
-export { getEventsForChannel, isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig };
+  return await collection.find(query).toArray();
+});

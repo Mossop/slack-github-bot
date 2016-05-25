@@ -4,8 +4,6 @@ import url from "url";
 
 import fs from "fs-promise";
 
-import config from "../config";
-
 // Github's maximum payload is 5MB, be a little generous
 const MAX_PAYLOAD = 1024 * 1024 * 6;
 
@@ -19,7 +17,7 @@ class HttpListener {
   constructor(events) {
     this.events = events;
     this.server = http.createServer(this.handler.bind(this));
-    this.server.listen(config.port);
+    this.server.listen(process.env.PORT);
     this.events.on("destroy", this.destroy.bind(this));
   }
 
@@ -50,10 +48,10 @@ class HttpListener {
       return;
     }
 
-    if (!urlPath.startsWith(`/${config.uuid}/`)) {
+    if (!urlPath.startsWith(`/${process.env.UUID}/`)) {
       return;
     }
-    urlPath = urlPath.substring(config.uuid.length + 1);
+    urlPath = urlPath.substring(process.env.UUID.length + 1);
 
     if (urlPath == "/kill") {
       response.writeHead(200);

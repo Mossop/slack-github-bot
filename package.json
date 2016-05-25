@@ -4,6 +4,7 @@
   "description": "A helpful bot for monitoring github project development",
   "scripts": {
     "build": "babel src -d lib",
+    "postinstall": "npm run build",
     "start": "node lib/start.js",
     "stop": "node lib/stop.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -36,7 +37,11 @@
     "babel-preset-es2015-node5": "1.2.0",
     "babel-preset-stage-2": "6.5.0",
     "fs-promise": "0.5.0",
+    "mongodb": "^2.1.19",
     "request": "2.71.0",
     "splitargs": "0.0.7"
+  },
+  "engines": {
+    "node": "6.2.0"
   }
 }

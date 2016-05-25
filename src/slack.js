@@ -1,9 +1,13 @@
 import { RtmClient as Client, WebClient, CLIENT_EVENTS, RTM_EVENTS } from "@slack/client";
 import splitargs from "splitargs";
 
-import { getEventsForChannel, isEventEnabledForChannel, setEventEnabledForChannel, setConfig, getConfig } from "./config";
-import config from "../config";
+import { getConfigForPath, setConfigForPath, getConfigForPathPrefix } from "./config";
 import { fetchPullRequest, fetchIssue } from "./github";
+
+let realport = "";
+if ("REALPORT" in process.env) {
+  realport = `:${process.env.REALPORT}`
+}
 
 const LOG_LENGTH = 1000;
 
@@ -83,7 +87,7 @@ const Commands = {
         let response = "Here are the commands I support:";
         for (let name of Object.keys(Commands)) {
           let command = Commands[name];
-          if (command.restricted && !isAdmin(config.owner, user, channel)) {
+          if (command.restricted && !isAdmin(process.env.OWNER, user, channel)) {
             continue;
           }
           response += "\n" + name + ": " + escape(firstline(command.info));
@@ -106,7 +110,7 @@ const Commands = {
       }
 
       try {
-        let pr = await fetchPullRequest(config.repo, number);
+        let pr = await fetchPullRequest(process.env.REPO, number);
         respond(formatPullRequest(pr));
       }
       catch (e) {
@@ -128,7 +132,7 @@ const Commands = {
       }
 
       try {
-        let issue = await fetchIssue(config.repo, number);
+        let issue = await fetchIssue(process.env.REPO, number);
         respond(formatIssue(issue));
       }
       catch (e) {
@@ -146,43 +150,6 @@ const Commands = {
     }
   },
 
-  "set-config": {
-    restricted: true,
-    usage: "<path> <value>",
-    info: "Sets a configuration entry.",
-    validate({ params }) {
-      return params.length == 2;
-    },
-    run({ params, respond }) {
-      let [name, value] = params;
-      if (value == "undefined") {
-        value = undefined;
-      } else {
-        try {
-          value = JSON.parse(value);
-        }
-        catch (e) {
-        }
-      }
-
-      setConfig(name, value);
-      respond("Ok.");
-    }
-  },
-
-  "get-config": {
-    restricted: true,
-    usage: "<path>",
-    info: "Gets a configuration entry.",
-    validate({ params }) {
-      return params.length <= 1;
-    },
-    run({ params, respond }) {
-      let name = params.length ? params[0] : "";
-      respond(escape(JSON.stringify(getConfig(name, undefined))));
-    }
-  },
-
   "events": {
     restricted: true,
     usage: "<...path> <on/off/default>",
@@ -193,7 +160,7 @@ Useful paths:
 \`issue <opened/closed/reopened>\`
 \`pullrequest <opened/closed/reopened>\`
 \`build <success/failure/changed> <branch/pullrequest> <id>\``,
-    run(args) {
+    async run(args) {
       const { channel, params, respond } = args;
 
       let targetChannel = channel;
@@ -209,36 +176,44 @@ Useful paths:
       }
 
       if (params.length) {
-        let state = params.pop();
-        if (state == "default") {
-          state = undefined;
-        } else if (state == "on") {
-          state = true;
-        } else if (state == "off") {
-          state = false;
+        let enabled = params.pop();
+        if (enabled == "default") {
+          enabled = undefined;
+        } else if (enabled == "on") {
+          enabled = true;
+        } else if (enabled == "off") {
+          enabled = false;
         } else {
           args.params = ["events"];
           runCommand(this, "help", args);
           return;
         }
 
-        setEventEnabledForChannel(state, targetChannel, ...params);
+        if (enabled === undefined) {
+          await setConfigForPath([targetChannel.id, ...params], undefined);
+        } else {
+          await setConfigForPath([targetChannel.id, ...params], { enabled });
+        }
+
         respond("Ok.");
       } else {
-        let events = getEventsForChannel(targetChannel);
-        respond("Event settings:\n" + events.map(e => "`" + e.join(" ") + "`").join("\n"));
+        let configs = await getConfigForPathPrefix([targetChannel.id]);
+        let paths = configs.map((c) => {
+          let p = c.path.slice(1);
+          p.push(c.enabled ? "on" : "off")
+          return p;
+        })
+        respond("Event settings:\n" + paths.map(p => "`" + p.join(" ") + "`").join("\n"));
       }
     }
   },
 
   "test": {
-    usage: "<type> <subtype>",
+    usage: "<...path>",
     info: "Test whether events will be reported to this channel.",
-    validate({ params }) {
-      return params.length <= 2;
-    },
-    run({ channel, params, respond }) {
-      let result = isEventEnabledForChannel(channel, ...params);
+    async run({ channel, params, respond }) {
+      let config = await getConfigForPath([channel.id, ...params]);
+      let result = config ? config.enabled : false;
       respond(result ? "on" : "off");
     }
   },
@@ -277,7 +252,7 @@ function isAdmin(user, channel) {
     return true;
   }
 
-  return user.name == config.owner;
+  return user.name == process.env.OWNER;
 }
 
 function runCommand(bot, command, args) {
@@ -330,8 +305,8 @@ class Bot {
     events.on("log", appendLog.bind(null, "log"));
     events.on("error", appendLog.bind(null, "error"));
 
-    this.client = new Client(config.slack_token);
-    this.webClient = new WebClient(config.slack_token);
+    this.client = new Client(process.env.SLACK_TOKEN);
+    this.webClient = new WebClient(process.env.SLACK_TOKEN);
 
     for (let event of Object.keys(SLACK_EVENT_MAP)) {
       this.client.on(event, safeCallback(this, this[SLACK_EVENT_MAP[event]].bind(this)));
@@ -344,10 +319,11 @@ class Bot {
     this.client.start({ no_unreads: true });
   }
 
-  sendEvent(message, ...path) {
+  async sendEvent(message, ...path) {
     this.events.emit("log", "Sending event", ...path);
     for (let channel of this.channels.values()) {
-      if (isEventEnabledForChannel(channel, ...path)) {
+      let config = await getConfigForPath([channel.id, ...path]);
+      if (config && config.enabled) {
         this.sendMessage(channel, message);
       }
     }
@@ -462,7 +438,7 @@ class Bot {
     let options = Object.assign({
       username: this.name,
       as_user: false,
-      icon_url: `http://${config.hostname}:${config.port}/static/bot.png`
+      icon_url: `http://${process.env.HOSTNAME}${realport}/static/bot.png`
     }, message);
 
     let text = options.text;
@@ -596,17 +572,17 @@ class Bot {
       let number = results[2];
 
       if (type == "issue") {
-        maybeIssue(config.repo, number);
+        maybeIssue(process.env.REPO, number);
       } else {
-        maybePullRequest(config.repo, number);
+        maybePullRequest(process.env.REPO, number);
       }
     }
 
     while ((results = id_regex.exec(message.text)) !== null) {
       let number = results[1];
 
-      maybeIssue(config.repo, number);
-      maybePullRequest(config.repo, number);
+      maybeIssue(process.env.REPO, number);
+      maybePullRequest(process.env.REPO, number);
     }
   }
 

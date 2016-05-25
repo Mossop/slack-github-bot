@@ -1,22 +1,26 @@
 import request from "request";
-import config from "../config";
+
+let realport = "";
+if ("REALPORT" in process.env) {
+  realport = `:${process.env.REALPORT}`
+}
 
 const GITHUB = {
   name: "GitHub",
   url: "https://github.com",
-  avatar: `http://${config.hostname}:${config.port}/static/github.png`,
+  avatar: `http://${process.env.HOSTNAME}${realport}/static/github.png`,
 }
 
 const CI = {
   "appveyor": {
     name: "AppVeyor CI",
     url: "https://www.appveyor.com",
-    avatar: `http://${config.hostname}:${config.port}/static/appveyor.png`,
+    avatar: `http://${process.env.HOSTNAME}${realport}/static/appveyor.png`,
   },
   "travis-ci": {
     name: "Travis CI",
     url: "https://travis-ci.org",
-    avatar: `http://${config.hostname}:${config.port}/static/travisci.png`,
+    avatar: `http://${process.env.HOSTNAME}${realport}/static/travisci.png`,
   },
 };
 
