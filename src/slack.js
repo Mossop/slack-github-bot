@@ -295,15 +295,8 @@ class Bot {
       events.on(event, this[name].bind(this));
     }
 
-    let appendLog = (...args) => {
-      this.log.unshift(args);
-      while (this.log.length > LOG_LENGTH) {
-        this.log.pop();
-      }
-    };
-
-    events.on("log", appendLog.bind(null, "log"));
-    events.on("error", appendLog.bind(null, "error"));
+    events.on("log", this.appendLog.bind(this, "log"));
+    events.on("error", this.appendLog.bind(this, "error"));
 
     this.client = new Client(process.env.SLACK_TOKEN);
     this.webClient = new WebClient(process.env.SLACK_TOKEN);
@@ -317,6 +310,13 @@ class Bot {
     }
 
     this.client.start({ no_unreads: true });
+  }
+
+  appendLog(...args) {
+    this.log.unshift(args);
+    while (this.log.length > LOG_LENGTH) {
+      this.log.pop();
+    }
   }
 
   async sendEvent(message, ...path) {
