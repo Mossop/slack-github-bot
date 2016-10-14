@@ -109,7 +109,7 @@ class Github {
     }
 
     let event = {
-      path: ["issue", data.action, data.issue.number],
+      path: ["issue", data.repository.owner.login, data.repository.name, data.action, data.issue.number],
       url: data.issue.html_url,
       issue: {
         name: data.issue.number,
@@ -133,7 +133,7 @@ class Github {
     }
 
     let event = {
-      path: ["pullrequest", data.action, data.pull_request.number],
+      path: ["pullrequest", data.repository.owner.login, data.repository.name, data.action, data.pull_request.number],
       url: data.pull_request.html_url,
       pullrequest: {
         name: data.pull_request.number,
@@ -164,7 +164,7 @@ class Github {
     let branchName = data.ref.substring("refs/heads/".length);
 
     let event = {
-      path: ["branch", "pushed", branchName],
+      path: ["branch", data.repository.owner.login, data.repository.name, "pushed", branchName],
       forced: data.forced,
       url: data.compare,
       branch: {
@@ -206,7 +206,7 @@ class Github {
     }
 
     let event = {
-      path: ["build", data.state],
+      path: ["build", data.repository.owner.login, data.repository.name, data.state],
       state: data.state,
       result: data.description,
       url: data.target_url,
