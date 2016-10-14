@@ -363,7 +363,7 @@ class Bot {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.pullrequest.action} pull request ${event.pullrequest.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.pullrequest.action} pull request ${event.pullrequest.name} in <${escape(event.repository.url)}|${escape(event.repository.fullname)}>.`,
       attachments: [{
         fallback: `${escape(event.pullrequest.title)} ${escape(event.pullrequest.url)}`,
         title: escape(event.pullrequest.title),
@@ -378,7 +378,7 @@ class Bot {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.issue.action} issue ${event.issue.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.issue.action} issue ${event.issue.name} in <${escape(event.repository.url)}|${escape(event.repository.fullname)}>.`,
       attachments: [{
         fallback: `${escape(event.issue.title)} ${escape(event.issue.url)}`,
         title: escape(event.issue.title),
@@ -407,7 +407,7 @@ class Bot {
       text += "> to ";
     }
 
-    text += `branch <${escape(event.branch.url)}|${escape(event.branch.name)}>`;
+    text += `branch <${escape(event.branch.url)}|${escape(event.branch.name)}> of <${escape(event.repository.url)}|${escape(event.repository.fullname)}>`;
 
     let message = {
       username: event.source.name,
@@ -435,6 +435,8 @@ class Bot {
     } else {
       text += `branch <${event.branch.url}|${escape(event.name)}> `;
     }
+
+    text += `of <${escape(event.repository.url)}|${escape(event.repository.fullname)}>`;
 
     if (event.state == "success") {
       text += "succeeded.";
