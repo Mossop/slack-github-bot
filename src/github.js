@@ -116,6 +116,7 @@ class Github {
         url: data.issue.html_url,
         title: data.issue.title,
         state: data.issue.state,
+        action: data.action,
       },
       repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
@@ -140,6 +141,7 @@ class Github {
         url: data.pull_request.html_url,
         title: data.pull_request.title,
         state: data.pull_request.state,
+        action: data.action,
       },
       repository: makeRepository(data.repository),
       sender: await fetchSender(data.sender),
@@ -169,6 +171,7 @@ class Github {
       url: data.compare,
       branch: {
         name: branchName,
+        action: "pushed",
       },
       commits: data.commits.map(mungeCommit),
       repository: makeRepository(data.repository),
@@ -179,9 +182,11 @@ class Github {
     event.branch.url = `${event.repository.url}/tree/${event.branch.name}`;
 
     if (data.created) {
-      event.path[1] = "created";
+      event.path[3] = "created";
+      event.branch.action = "created";
     } else if (data.deleted) {
-      event.path[1] = "deleted";
+      event.path[3] = "deleted";
+      event.branch.action = "deleted";
     }
 
     this.emit(event);
@@ -242,6 +247,8 @@ class Github {
     }
 
     event.path.push(type, id);
+    event.type = type;
+    event.name = id;
 
     this.emit(event);
 
@@ -249,7 +256,8 @@ class Github {
     let lastState = this.lastState.get(key) || "success";
     this.events.emit("log", "buildstate", data.state, "laststate", key, this.lastState.get(key), lastState);
     if (lastState != data.state) {
-      event.path[1] = "changed";
+      event.path[3] = "changed";
+      event.state = "changed";
       this.emit(event);
     }
 

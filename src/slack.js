@@ -363,7 +363,7 @@ class Bot {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.path[1]} pull request ${event.pullrequest.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.pullrequest.action} pull request ${event.pullrequest.name}.`,
       attachments: [{
         fallback: `${escape(event.pullrequest.title)} ${escape(event.pullrequest.url)}`,
         title: escape(event.pullrequest.title),
@@ -378,7 +378,7 @@ class Bot {
     let message = {
       username: event.source.name,
       icon_url: event.source.avatar,
-      text: `${escape(event.sender.fullname)} ${event.path[1]} issue ${event.issue.name}.`,
+      text: `${escape(event.sender.fullname)} ${event.issue.action} issue ${event.issue.name}.`,
       attachments: [{
         fallback: `${escape(event.issue.title)} ${escape(event.issue.url)}`,
         title: escape(event.issue.title),
@@ -398,8 +398,8 @@ class Bot {
       text += "*force* ";
     }
 
-    text += `${event.path[1]} `;
-    if (event.path[1] == "pushed") {
+    text += `${event.branch.action} `;
+    if (event.branch.action == "pushed") {
       text += `<${escape(event.url)}|${event.commits.length} commit`;
       if (event.commits.length != 1) {
         text += "s";
@@ -430,10 +430,10 @@ class Bot {
     let state = event.state == "success" ? "succeeded" : "failed";
 
     let text = "Build of ";
-    if (event.path[2] == "pullrequest") {
-      text += `pull request ${event.path[3]} `
+    if (event.type == "pullrequest") {
+      text += `pull request ${event.name} `
     } else {
-      text += `branch <${event.branch.url}|${escape(event.path[3])}> `;
+      text += `branch <${event.branch.url}|${escape(event.name)}> `;
     }
 
     if (event.state == "success") {
