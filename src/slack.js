@@ -156,19 +156,28 @@ const Commands = {
     info: `Control reporting of events to this channel.
 The path filters events. The more parts of the path you include the more specific the rule.
 Useful paths:
-\`branch <pushed/created/deleted> <branch name>\`
-\`issue <opened/closed/reopened>\`
-\`pullrequest <opened/closed/reopened>\`
-\`build <success/failure/changed> <branch/pullrequest> <id>\``,
+\`branch <org> <repo> <pushed/created/deleted> <branch name>\`
+\`issue <org> <repo> <opened/closed/reopened>\`
+\`pullrequest <org> <repo> <opened/closed/reopened>\`
+\`build <org> <repo> <success/failure/changed> <branch/pullrequest> <id>\``,
     async run(args) {
       const { channel, params, respond } = args;
 
       let targetChannel = channel;
       if (params.length && params[0].startsWith("<#") && params[0].endsWith(">")) {
         const id = params[0].substring(2, params[0].length - 1);
-        targetChannel = this.channels.get(id);
+        targetChannel = this.getChannel(id);
         if (!targetChannel) {
-          respond("Unknown channel.");
+          respond("Unknown channel id - " + id + ".");
+          return;
+        }
+
+        params.shift();
+      } else if (params.length && params[0].startsWith("#")) {
+        const name = params[0].substring(1, params[0].length);
+        targetChannel = this.getChannel(name);
+        if (!targetChannel) {
+          respond("Unknown channel name - " + name + ".");
           return;
         }
 
@@ -310,6 +319,25 @@ class Bot {
     }
 
     this.client.start({ no_unreads: true });
+  }
+
+  getChannel(idorname) {
+    if (this.channels.has(idorname)) {
+      return this.channels.get(idorname);
+    }
+
+    if (idorname.indexOf("|") >= 0) {
+      idorname = idorname.substring(0, idorname.indexOf("|"));
+      return this.channels.get(idorname);
+    }
+
+    for (let channel of this.channels.values()) {
+      if (channel.name == idorname) {
+        return channel;
+      }
+    }
+
+    return undefined;
   }
 
   appendLog(...args) {
