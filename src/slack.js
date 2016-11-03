@@ -436,7 +436,7 @@ class Bot {
       text += `branch <${event.branch.url}|${escape(event.name)}> `;
     }
 
-    text += `of <${escape(event.repository.url)}|${escape(event.repository.fullname)}>`;
+    text += `of <${escape(event.repository.url)}|${escape(event.repository.fullname)}> `;
 
     if (event.state == "success") {
       text += "succeeded.";
