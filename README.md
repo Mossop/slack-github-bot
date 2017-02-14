@@ -2,16 +2,12 @@
 A helpful bot for monitoring github project development
 
 ## Configuration
-Create a config.json that looks like this:
+The bot expects to see certain configuration settings in environment variables (You can set these in Heroku's settings)
 
-    {
-      "hostname" "<hostname>",
-      "port": <IP port>,
-      "uuid": "<A private ID, any string>",
-      "slack_token": "<slack API token>",
-      "owner": "<a username that has full access to the bot>",
-      "repo": "<repository for looking up issues and pull requests>"
-    }
+OWNER: A username that has full access to the bot
+REPO: Repository for looking up issues and pull requests
+SLACK_TOKEN: A Slack API token
+UUID: A secret key for the bot
 
 Point GitHub's webhook to:
 
